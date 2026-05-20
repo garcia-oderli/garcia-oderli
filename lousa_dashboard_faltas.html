@@ -479,23 +479,15 @@ function renderToday(rows, today, year, month){
     return;
   }
 
-  // Blocos por categoria com nomes
+  // Blocos por categoria sem nomes
   catsEl.innerHTML=CATS.map(cat=>{
     const items=byCat[cat.key];
     if(items.length===0)return'';
-    const namesHTML=items.length>0
-      ?`<div class="today-names-grid">${items.map(r=>{
-          const nm=r.nome||'—';
-          const st=r.setor||r.dept||'';
-          return `<div class="today-name-cell"><span class="tname" title="${nm}">${nm}</span>${st?`<span class="tsetor">${st}</span>`:''}</div>`;
-        }).join('')}</div>`
-      :'';
     return `<div class="today-cat-block">
       <div class="today-cat-hdr">
         <span class="cat-label"><span class="cdot ${cat.dot}"></span><span class="${cat.cls}" style="font-size:12px;font-weight:700">${cat.label}</span></span>
         <span class="today-cat-badge ${cat.cls}">${items.length}</span>
       </div>
-      ${namesHTML}
     </div>`;
   }).join('');
 }
