@@ -136,6 +136,7 @@ tr.row-pct td:first-child{color:var(--text);font-family:'Inter',sans-serif;font-
 .rank-bar{height:4px;border-radius:2px}
 .rank-pct{font-size:10px;font-weight:700;text-align:right}
 .rank-div{height:1px;background:var(--border);margin:2px 0}
+.rank-list-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:0 16px}
 .ri-crit .rank-bar{background:var(--red)}.ri-crit .rank-pct,.ri-crit .rank-cnt{color:var(--red)}
 .ri-warn .rank-bar{background:var(--amber)}.ri-warn .rank-pct,.ri-warn .rank-cnt{color:var(--amber)}
 .ri-norm .rank-bar{background:var(--blue)}.ri-norm .rank-pct,.ri-norm .rank-cnt{color:var(--blue)}
@@ -235,6 +236,10 @@ tr.row-pct td:first-child{color:var(--text);font-family:'Inter',sans-serif;font-
         <div class="kpi"><div class="kpi-lbl">Maior Semana</div><div class="kpi-val c-crit" id="kpi-max">—</div><div class="kpi-sub" id="kpi-max-sub">—</div></div>
         <div class="kpi"><div class="kpi-lbl">Menor Semana</div><div class="kpi-val c-norm" id="kpi-min">—</div><div class="kpi-sub" id="kpi-min-sub">—</div></div>
       </div>
+      <div class="card">
+        <div class="card-title"><span class="ctdot" style="background:var(--orange)"></span>Ranking por Setor</div>
+        <div class="rank-list rank-list-grid" id="rank-list"></div>
+      </div>
     </div>
 
     <div class="col-right">
@@ -288,10 +293,6 @@ tr.row-pct td:first-child{color:var(--text);font-family:'Inter',sans-serif;font-
         <div class="gauge-note" id="g-note">—</div>
       </div>
 
-      <div class="card">
-        <div class="card-title"><span class="ctdot" style="background:var(--orange)"></span>Ranking por Setor</div>
-        <div class="rank-list" id="rank-list"></div>
-      </div>
     </div>
   </div>
 
