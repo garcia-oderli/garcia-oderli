@@ -2,71 +2,171 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Projeto
+═══════════════════════════════════════════════
+REGRAS OBRIGATÓRIAS DE ESTRUTURAÇÃO E ALTERAÇÃO DE CÓDIGO
+═══════════════════════════════════════════════
+
+OBJETIVO:
+Todo código HTML, CSS e JavaScript deve ser modular, separado por blocos claros e editáveis individualmente, evitando necessidade de ler o arquivo inteiro para fazer alterações.
+
+───────────────────────────────────────────────
+PADRÃO DE ORGANIZAÇÃO OBRIGATÓRIO
+───────────────────────────────────────────────
+
+1. SEMPRE separar o sistema em blocos independentes:
+
+/* ═══════════════════════════════════════
+   MÓDULO: DASHBOARD
+═══════════════════════════════════════ */
+
+<!-- HTML -->
+<section id="dashboard"></section>
+
+<style id="dashboard-style"></style>
+
+<script id="dashboard-script"></script>
+
+2. NUNCA misturar:
+- CSS espalhado
+- JavaScript solto
+- HTML gigante sem separação
+- funções aleatórias fora do módulo
+
+───────────────────────────────────────────────
+PADRÃO DE MODULARIZAÇÃO
+───────────────────────────────────────────────
+
+Cada área do sistema deve possuir:
+
+✅ BLOCO HTML
+✅ BLOCO CSS
+✅ BLOCO JS
+✅ HEADER DO MÓDULO
+✅ COMENTÁRIO PADRONIZADO
+
+EXEMPLO:
+
+<!-- ═══════════════════════════════════════
+     MÓDULO: TABELA DE CUSTOS
+═══════════════════════════════════════ -->
+
+<section id="mod-custos"></section>
+
+<style>
+/* ── CSS: TABELA DE CUSTOS ── */
+</style>
+
+<script>
+/* ── JS: TABELA DE CUSTOS ── */
+</script>
+
+───────────────────────────────────────────────
+REGRA PRINCIPAL DE ALTERAÇÃO
+───────────────────────────────────────────────
+
+Quando houver pedido de alteração:
+
+❌ NÃO ler nem reescrever o HTML inteiro
+❌ NÃO modificar outras áreas
+❌ NÃO reorganizar sistema completo sem necessidade
+
+✅ ALTERAR SOMENTE:
+- módulo solicitado
+- função solicitada
+- bloco solicitado
+- componente solicitado
+
+Ao modificar algo:
+1. IDENTIFICAR O MÓDULO
+2. ALTERAR SOMENTE O TRECHO NECESSÁRIO
+3. RETORNAR APENAS o bloco/função/CSS/HTML alterado — NUNCA o arquivo inteiro
+
+───────────────────────────────────────────────
+PADRÃO DE COMENTÁRIOS
+───────────────────────────────────────────────
+
+/* ═══════════════════════════════════════
+   MÓDULO: EXECUTIVO
+═══════════════════════════════════════ */
+
+/* ── KPI CARDS ── */
+/* ── GRÁFICOS ── */
+/* ── TABELA PRINCIPAL ── */
+
+───────────────────────────────────────────────
+PADRÃO DE NOMENCLATURA
+───────────────────────────────────────────────
+
+IDs:       mod-dashboard · mod-custos · mod-executivo
+Classes:   dashboard-card · custos-table · exec-chart
+Funções:   initDashboard() · renderCustos() · updateExecutivo()
+
+───────────────────────────────────────────────
+REGRA DE PERFORMANCE
+───────────────────────────────────────────────
+
+Priorizar: baixo acoplamento · funções pequenas · componentes reutilizáveis · manutenção rápida · alterações isoladas
+
+Toda nova funcionalidade deve:
+- nascer separada
+- possuir bloco HTML, CSS e JS próprios
+- possuir comentários próprios
+
+═══════════════════════════════════════════════
+SOBRE ESTE PROJETO
+═══════════════════════════════════════════════
 
 Dashboard de absenteísmo em HTML puro (single-file), exibido como **lousa** (tela grande/TV) na empresa. Lê dados de uma planilha Excel e renderiza tudo no lado do cliente — sem servidor, sem build, sem dependências instaladas.
 
-## Arquivo principal
+Arquivo principal: `lousa_dashboard_faltas.html`
+Deploy: copiado para `\\192.168.0.12\dados\PUBLICA\PROD\` e aberto no Chrome via `file://`.
 
-`lousa_dashboard_faltas.html` — arquivo único que contém HTML, CSS e JavaScript. Não há processo de build; editar o arquivo já é o resultado final.
+───────────────────────────────────────────────
+MÓDULOS DO ARQUIVO PRINCIPAL
+───────────────────────────────────────────────
 
-## Dependências
+| Módulo                  | ID / Elemento          | Descrição                                      |
+|-------------------------|------------------------|------------------------------------------------|
+| Upload screen           | `#upload-screen`       | Tela inicial de seleção do arquivo Excel        |
+| Header                  | `.hdr`                 | Filtros, relógio, contador de auto-refresh      |
+| Ocorrências de Hoje     | `#today-card`          | KPIs e categorias do dia atual                  |
+| Quadro Semanal          | `#thead-row / #tbody-quadro` | Tabela por semana e categoria             |
+| Semana Atual por Dia    | `#day-cards`           | Cards seg–sex da semana corrente               |
+| Resumo por Semana       | `#week-cards`          | Mini-cards com sparkline por semana            |
+| KPIs                    | `.kpi-row`             | Total, média, maior e menor semana             |
+| Ranking por Setor       | `#rank-list`           | Top 10 setores em grid 2 colunas               |
+| Colaboradores           | `#dept-grid`           | Contagem ativa por departamento                |
+| Gauge Absenteísmo       | `#gauge-svg`           | Velocímetro com índice internacional           |
 
-Única dependência externa, carregada via CDN:
-- `xlsx.full.min.js` (SheetJS v0.18.5) — leitura do `.xlsx` no browser
+───────────────────────────────────────────────
+FLUXO DE DADOS
+───────────────────────────────────────────────
 
-## Estrutura interna do HTML
+1. `selectFile()` — File System Access API; handle salvo em IndexedDB (`lousa_v1`)
+2. `tryRestoreHandle()` — restaura handle ao abrir a página (auto-carga)
+3. `processBuffer(buffer, silent)` — lê abas `BASE` e `DP` do workbook
+4. `render()` — filtra `allRows` e monta todos os módulos
+5. `fitToScreen()` — aplica CSS `zoom` para caber na tela (lousa); usa `scrollHeight`
 
-```
-<head>          CSS (variáveis :root, layout grid, cards, hoje, gauge)
-<body>
-  #upload-screen    Tela inicial de seleção de arquivo
-  #loading          Overlay de carregamento
-  #dashboard        Dashboard principal (oculto até carregar dados)
-    .hdr            Cabeçalho sticky com filtros + relógio + contador refresh
-    .body           Grid 2 colunas: col-left (1fr) | col-right (370px)
-      col-left:     Quadro Semanal → Semana Atual por Dia → Resumo → KPIs → Ranking
-      col-right:    Ocorrências de Hoje → Colaboradores → Gauge → (ranking foi movido)
-    .footer
-<script>        Todo o JavaScript inline
-```
+───────────────────────────────────────────────
+PLANILHA EXCEL ESPERADA
+───────────────────────────────────────────────
 
-## Fluxo de dados
+Aba `BASE`: `DATA`, `STATUS`, `SETOR`, `NOME`, `DEPARTAMENTO`, `COD`
+Aba `DP` (opcional): `DEMISSÃO`, `ADMISSÃO`, `DEPARTAMENTO`
 
-1. Usuário seleciona o `.xlsx` via `selectFile()` (usa **File System Access API** no Chrome)
-2. Handle salvo no **IndexedDB** (`lousa_v1` / store `handles`) para auto-carga nas próximas aberturas
-3. `processBuffer(buffer, silent)` lê as abas `BASE` e `DP` do workbook
-4. `render()` filtra `allRows` pelo ano/mês/depto/setor selecionado e monta todos os componentes
-5. `fitToScreen()` aplica CSS `zoom` para caber na resolução da tela (lousa)
-6. Auto-refresh a cada 5 min via `_fileHandle.getFile()` — relê do disco sem interação
+STATUS reconhecidos:
+- Faltas just. → `ATESTADO`, `ATEST. OB.`, `JUST.`, `JUSTIFICATIVA`
+- Ausência     → `FALTA`
+- Atrasos      → `ATRASO`, `TARDE`, `BANCO H.`
+- Afastamento  → `AFASTADO`, `LIC. MAT.`
+- Ignorado     → `FÉRIAS`
 
-## Estrutura da planilha Excel esperada
+───────────────────────────────────────────────
+COMPORTAMENTOS IMPORTANTES
+───────────────────────────────────────────────
 
-**Aba `BASE`** (obrigatória):
-- `DATA`, `STATUS`, `SETOR`, `NOME`, `DEPARTAMENTO`, `COD`
-
-**Aba `DP`** (opcional — dados de colaboradores ativos):
-- Linha de cabeçalho com `DEMISSÃO`, `ADMISSÃO`, `DEPARTAMENTO`
-
-**Valores de STATUS reconhecidos:**
-| Categoria       | Status no Excel                              |
-|-----------------|----------------------------------------------|
-| Faltas just.    | `ATESTADO`, `ATEST. OB.`, `JUST.`, `JUSTIFICATIVA` |
-| Ausência        | `FALTA`                                      |
-| Atrasos         | `ATRASO`, `TARDE`, `BANCO H.`                |
-| Afastamento     | `AFASTADO`, `LIC. MAT.`                      |
-| (ignorado)      | `FÉRIAS`                                     |
-
-## Comportamento de seleção de mês
-
-- Primeira carga: sempre vai para o **mês mais recente** nos dados
-- Auto-refresh / trocar arquivo: preserva a seleção atual (ano/mês/depto/setor)
-- A lógica está em `processBuffer()` — usa `dashVisible` para distinguir os dois casos
-
-## Auto-escala (lousa)
-
-`fitToScreen()` usa `scrollWidth`/`scrollHeight` do `#dashboard` para calcular o zoom. Chamado com `setTimeout(..., 300)` após cada `render()` para garantir layout completo.
-
-## Deploy
-
-O arquivo HTML é copiado diretamente para `\\192.168.0.12\dados\PUBLICA\PROD\` e acessado pelo navegador via esse caminho de rede. Não há servidor web — o Chrome abre como `file://`.
+- Primeira carga → sempre abre no **mês mais recente** dos dados
+- Auto-refresh (dashboard visível) → preserva ano/mês/depto/setor selecionados
+- `fitToScreen()` chamado com `setTimeout(..., 300)` após cada `render()`
+- Auto-refresh a cada 5 min via `_fileHandle.getFile()` — sem interação do usuário
