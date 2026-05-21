@@ -42,6 +42,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
 .hdr-clock{font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700;color:var(--amber);letter-spacing:2px;min-width:60px;text-align:right}
 .btn-reload{background:var(--card2);border:1px solid var(--border);color:var(--text2);padding:5px 11px;border-radius:6px;font-size:11px;cursor:pointer;font-family:'Inter',sans-serif;transition:all .2s}
 .btn-reload:hover{border-color:var(--blue);color:var(--blue)}
+.hdr-refresh{font-size:11px;font-weight:700;color:var(--green);cursor:pointer;letter-spacing:.5px;padding:4px 8px;border-radius:6px;border:1px solid rgba(34,211,160,.3);background:rgba(34,211,160,.08);white-space:nowrap}
+.hdr-refresh:hover{background:rgba(34,211,160,.18)}
 
 .body{display:grid;grid-template-columns:1fr 370px;gap:14px;padding:14px;align-items:start}
 @media(max-width:1100px){.body{grid-template-columns:1fr}}
@@ -212,6 +214,7 @@ tr.row-pct td:first-child{color:var(--text);font-family:'Inter',sans-serif;font-
       <span class="hdr-meta" id="hdr-upd">—</span>
       <span class="hdr-emp">👥 <span id="hdr-emp">—</span> func. ativos</span>
       <span class="hdr-clock" id="hdr-clock">--:--</span>
+      <span class="hdr-refresh" id="hdr-refresh" onclick="forceRefresh()" title="Clique para atualizar agora">↻ —</span>
       <button class="btn-reload" onclick="document.getElementById('file-input').click()">↩ Trocar arquivo</button>
     </div>
   </div>
@@ -346,7 +349,63 @@ function tickClock(){
 setInterval(tickClock,1000);
 tickClock();
 
-// ─── UPLOAD ──────────────────────────────────────────────────
+// ─── AUTO-REFRESH ─────────────────────────────────────────────
+const AUTO_MS = 5 * 60 * 1000; // 5 minutos
+let _autoUrl = null, _autoTimer = null, _countTimer = null, _nextAt = null;
+
+function setupAutoRefresh(filename){
+  _autoUrl = filename;
+  scheduleNext();
+}
+
+function scheduleNext(){
+  if(_autoTimer)clearTimeout(_autoTimer);
+  if(_countTimer)clearInterval(_countTimer);
+  _nextAt = Date.now() + AUTO_MS;
+  _autoTimer = setTimeout(()=>{autoRefresh();scheduleNext();}, AUTO_MS);
+  _countTimer = setInterval(updateCountdown, 1000);
+  updateCountdown();
+}
+
+function updateCountdown(){
+  const el=document.getElementById('hdr-refresh');
+  if(!el||!_nextAt)return;
+  const rem=Math.max(0,Math.round((_nextAt-Date.now())/1000));
+  const m=String(Math.floor(rem/60)).padStart(2,'0');
+  const s=String(rem%60).padStart(2,'0');
+  el.textContent=`↻ ${m}:${s}`;
+}
+
+function forceRefresh(){
+  if(!_autoUrl)return;
+  if(_autoTimer)clearTimeout(_autoTimer);
+  if(_countTimer)clearInterval(_countTimer);
+  autoRefresh();
+  scheduleNext();
+}
+
+function autoRefresh(){
+  if(!_autoUrl)return;
+  fetch(_autoUrl+'?_='+Date.now(),{cache:'no-store'})
+    .then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.arrayBuffer();})
+    .then(buf=>processBuffer(buf, true))
+    .catch(err=>console.warn('Auto-refresh falhou:',err));
+}
+
+// Tenta carregar automaticamente ao abrir a página
+function tryAutoLoad(){
+  const candidates=['CONTROLE_FALTAS__2026.xlsx','CONTROLE_FALTAS_2026.xlsx','CONTROLE_FALTAS.xlsx'];
+  function tryNext(i){
+    if(i>=candidates.length)return;
+    fetch(candidates[i]+'?_='+Date.now(),{cache:'no-store'})
+      .then(r=>{if(!r.ok)throw new Error();return r.arrayBuffer();})
+      .then(buf=>{_autoUrl=candidates[i];processBuffer(buf,false);setupAutoRefresh(candidates[i]);})
+      .catch(()=>tryNext(i+1));
+  }
+  tryNext(0);
+}
+
+// ─── UPLOAD MANUAL ───────────────────────────────────────────
 const dz=document.getElementById('drop-zone'),fi=document.getElementById('file-input');
 dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-over')});
 dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
@@ -360,61 +419,76 @@ function loadFile(file){
   ld(true);
   const rdr=new FileReader();
   rdr.onload=e=>{
-    try{
-      const wb=XLSX.read(e.target.result,{type:'array',cellDates:true});
-      const bs=wb.Sheets['BASE'];
-      if(!bs){alert('Aba "BASE" não encontrada!');ld(false);return}
-      const raw=XLSX.utils.sheet_to_json(bs,{header:1,raw:false,dateNF:'yyyy-mm-dd'});
-      const H=raw[0].map(h=>String(h||'').trim().toUpperCase());
-      const iD=H.indexOf('DATA'),iS=H.indexOf('STATUS'),iSE=H.indexOf('SETOR');
-      const iDP=H.indexOf('DEPARTAMENTO'),iN=H.indexOf('NOME'),iC=H.indexOf('COD');
-      if(iD<0||iS<0){alert('Coluna DATA ou STATUS não encontrada!');ld(false);return}
-      allRows=[];
-      for(let i=1;i<raw.length;i++){
-        const r=raw[i];if(!r||!r[iD])continue;
-        let d=(r[iD] instanceof Date)?r[iD]:new Date(String(r[iD]).replace(' 00:00:00',''));
-        if(isNaN(d))continue;
-        const st=String(r[iS]||'').trim().toUpperCase();if(!st)continue;
-        allRows.push({date:d,year:d.getFullYear(),month:d.getMonth()+1,
-          status:st,setor:String(r[iSE]||'').trim(),dept:String(r[iDP]||'').trim(),
-          nome:String(r[iN]||'').trim(),cod:String(r[iC]||'').trim()});
-      }
-      // DP sheet
-      dpData={active:0,byDept:{},admMonth:0,demMonth:0};
-      const ds=wb.Sheets['DP'];
-      if(ds){
-        const dr=XLSX.utils.sheet_to_json(ds,{header:1,raw:false,dateNF:'yyyy-mm-dd'});
-        window._dpR=dr;
-        let hR=-1;
-        for(let i=0;i<Math.min(dr.length,8);i++){if(dr[i]&&dr[i].some(c=>String(c||'').toUpperCase().includes('DEMISS'))){hR=i;break}}
-        window._dpH=hR;
-        if(hR>=0)parseDp(hR,dr,0,0);
-      }
-      activeEmp=dpData.active||new Set(allRows.map(r=>r.cod||r.nome)).size;
-      // Filtros
-      const years=[...new Set(allRows.map(r=>r.year))].sort();
-      const depts=[...new Set(allRows.map(r=>r.dept).filter(Boolean))].sort();
-      const setors=[...new Set(allRows.map(r=>r.setor).filter(Boolean))].sort();
-      const ys=document.getElementById('sel-year');ys.innerHTML='';
-      years.forEach(y=>{const o=document.createElement('option');o.value=y;o.textContent=y;ys.appendChild(o)});
-      const ds2=document.getElementById('sel-dept');ds2.innerHTML='<option value="">Todos</option>';
-      depts.forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=d;ds2.appendChild(o)});
-      const ss=document.getElementById('sel-setor');ss.innerHTML='<option value="">Todos</option>';
-      setors.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;ss.appendChild(o)});
-      const latY=Math.max(...years);
-      const latM=Math.max(...allRows.filter(r=>r.year===latY).map(r=>r.month));
-      document.getElementById('sel-year').value=latY;
-      document.getElementById('sel-month').value=latM;
-      const now=new Date();
-      document.getElementById('hdr-upd').textContent='Atualizado: '+now.toLocaleDateString('pt-BR')+' '+now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-      document.getElementById('upload-screen').style.display='none';
-      document.getElementById('dashboard').style.display='block';
-      render();
-    }catch(err){console.error(err);alert('Erro ao processar: '+err.message)}
+    processBuffer(e.target.result, false);
+    setupAutoRefresh(file.name);
     ld(false);
   };
+  rdr.onerror=()=>{alert('Erro ao ler arquivo');ld(false)};
   rdr.readAsArrayBuffer(file);
 }
+
+function processBuffer(buffer, silent){
+  try{
+    const wb=XLSX.read(buffer,{type:'array',cellDates:true});
+    const bs=wb.Sheets['BASE'];
+    if(!bs){if(!silent)alert('Aba "BASE" não encontrada!');return}
+    const raw=XLSX.utils.sheet_to_json(bs,{header:1,raw:false,dateNF:'yyyy-mm-dd'});
+    const H=raw[0].map(h=>String(h||'').trim().toUpperCase());
+    const iD=H.indexOf('DATA'),iS=H.indexOf('STATUS'),iSE=H.indexOf('SETOR');
+    const iDP=H.indexOf('DEPARTAMENTO'),iN=H.indexOf('NOME'),iC=H.indexOf('COD');
+    if(iD<0||iS<0){if(!silent)alert('Coluna DATA ou STATUS não encontrada!');return}
+    allRows=[];
+    for(let i=1;i<raw.length;i++){
+      const r=raw[i];if(!r||!r[iD])continue;
+      let d=(r[iD] instanceof Date)?r[iD]:new Date(String(r[iD]).replace(' 00:00:00',''));
+      if(isNaN(d))continue;
+      const st=String(r[iS]||'').trim().toUpperCase();if(!st)continue;
+      allRows.push({date:d,year:d.getFullYear(),month:d.getMonth()+1,
+        status:st,setor:String(r[iSE]||'').trim(),dept:String(r[iDP]||'').trim(),
+        nome:String(r[iN]||'').trim(),cod:String(r[iC]||'').trim()});
+    }
+    dpData={active:0,byDept:{},admMonth:0,demMonth:0};
+    const ds=wb.Sheets['DP'];
+    if(ds){
+      const dr=XLSX.utils.sheet_to_json(ds,{header:1,raw:false,dateNF:'yyyy-mm-dd'});
+      window._dpR=dr;
+      let hR=-1;
+      for(let i=0;i<Math.min(dr.length,8);i++){if(dr[i]&&dr[i].some(c=>String(c||'').toUpperCase().includes('DEMISS'))){hR=i;break}}
+      window._dpH=hR;
+      if(hR>=0)parseDp(hR,dr,0,0);
+    }
+    activeEmp=dpData.active||new Set(allRows.map(r=>r.cod||r.nome)).size;
+    const years=[...new Set(allRows.map(r=>r.year))].sort();
+    const depts=[...new Set(allRows.map(r=>r.dept).filter(Boolean))].sort();
+    const setors=[...new Set(allRows.map(r=>r.setor).filter(Boolean))].sort();
+    // Preserva seleção atual ao re-renderizar
+    const curY=parseInt(document.getElementById('sel-year').value)||0;
+    const curM=parseInt(document.getElementById('sel-month').value)||0;
+    const curD=document.getElementById('sel-dept').value;
+    const curS=document.getElementById('sel-setor').value;
+    const ys=document.getElementById('sel-year');ys.innerHTML='';
+    years.forEach(y=>{const o=document.createElement('option');o.value=y;o.textContent=y;ys.appendChild(o)});
+    const ds2=document.getElementById('sel-dept');ds2.innerHTML='<option value="">Todos</option>';
+    depts.forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=d;ds2.appendChild(o)});
+    const ss=document.getElementById('sel-setor');ss.innerHTML='<option value="">Todos</option>';
+    setors.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;ss.appendChild(o)});
+    if(curY&&years.includes(curY)){document.getElementById('sel-year').value=curY;}
+    else{const latY=Math.max(...years);document.getElementById('sel-year').value=latY;}
+    const selY=parseInt(document.getElementById('sel-year').value);
+    if(curM&&allRows.some(r=>r.year===selY&&r.month===curM)){document.getElementById('sel-month').value=curM;}
+    else{const latM=Math.max(...allRows.filter(r=>r.year===selY).map(r=>r.month));document.getElementById('sel-month').value=latM;}
+    if(curD&&depts.includes(curD))document.getElementById('sel-dept').value=curD;
+    if(curS&&setors.includes(curS))document.getElementById('sel-setor').value=curS;
+    const now=new Date();
+    document.getElementById('hdr-upd').textContent='Atualizado: '+now.toLocaleDateString('pt-BR')+' '+now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    document.getElementById('upload-screen').style.display='none';
+    document.getElementById('dashboard').style.display='block';
+    render();
+  }catch(err){console.error(err);if(!silent)alert('Erro ao processar: '+err.message)}
+}
+
+// Tenta carregar automaticamente ao abrir
+tryAutoLoad();
 
 function parseDp(hR,dr,sy,sm){
   const dh=dr[hR].map(c=>String(c||'').trim().toUpperCase());
