@@ -9,7 +9,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
 :root{--bg:#0b0f19;--card:#141927;--card2:#1a2035;--border:#2a3050;--text:#e2e8f0;--text2:#8899b4;--text3:#546280;--green:#22d3a0;--amber:#f59e0b;--red:#ef4444;--blue:#3b82f6;--purple:#a855f7;--orange:#f97316}
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:13px}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;font-size:13px}
 ::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 
 #upload-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:24px;padding:40px}
@@ -702,6 +702,7 @@ function render(){
       <div class="rank-pct">${pctR}%</div>
     </div>${i===2||i===5?'<div class="rank-div"></div>':''}`;
   }).join('')||'<div style="color:var(--text3);padding:10px 0;text-align:center">Sem dados</div>';
+  setTimeout(fitToScreen,50);
 }
 
 function renderEmpty(){
@@ -712,6 +713,7 @@ function renderEmpty(){
   ['kpi-total','kpi-avg','kpi-max','kpi-min'].forEach(id=>document.getElementById(id).textContent='0');
   document.getElementById('g-val').textContent='0%';
   updateGauge(0);
+  setTimeout(fitToScreen,50);
 }
 
 function sparkline(data,cur,val){
@@ -725,6 +727,19 @@ function sparkline(data,cur,val){
     <circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="2.5" fill="${col}"/>
   </svg>`;
 }
+
+// ─── AUTO-ESCALA LOUSA ───────────────────────────────────────
+function fitToScreen(){
+  const dash=document.getElementById('dashboard');
+  if(!dash||dash.style.display==='none')return;
+  dash.style.zoom='';
+  const ratio=Math.min(
+    window.innerWidth/dash.offsetWidth,
+    window.innerHeight/dash.offsetHeight
+  );
+  if(ratio<0.999)dash.style.zoom=ratio;
+}
+window.addEventListener('resize',fitToScreen);
 
 function updateGauge(raw){
   const maxScale=10;
