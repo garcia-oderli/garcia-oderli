@@ -461,11 +461,12 @@ function processBuffer(buffer, silent){
     const years=[...new Set(allRows.map(r=>r.year))].sort();
     const depts=[...new Set(allRows.map(r=>r.dept).filter(Boolean))].sort();
     const setors=[...new Set(allRows.map(r=>r.setor).filter(Boolean))].sort();
-    // Preserva seleção atual ao re-renderizar
-    const curY=parseInt(document.getElementById('sel-year').value)||0;
-    const curM=parseInt(document.getElementById('sel-month').value)||0;
-    const curD=document.getElementById('sel-dept').value;
-    const curS=document.getElementById('sel-setor').value;
+    // Preserva seleção APENAS se o dashboard já estava visível (auto-refresh)
+    const dashVisible=document.getElementById('dashboard').style.display==='block';
+    const curY=dashVisible?(parseInt(document.getElementById('sel-year').value)||0):0;
+    const curM=dashVisible?(parseInt(document.getElementById('sel-month').value)||0):0;
+    const curD=dashVisible?document.getElementById('sel-dept').value:'';
+    const curS=dashVisible?document.getElementById('sel-setor').value:'';
     const ys=document.getElementById('sel-year');ys.innerHTML='';
     years.forEach(y=>{const o=document.createElement('option');o.value=y;o.textContent=y;ys.appendChild(o)});
     const ds2=document.getElementById('sel-dept');ds2.innerHTML='<option value="">Todos</option>';
