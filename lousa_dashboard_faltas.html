@@ -182,7 +182,7 @@ tr.row-pct td:first-child{color:var(--text);font-family:'Inter',sans-serif;font-
     <div class="up-icon">📊</div>
     <h3>Importar planilha Excel</h3>
     <p>Arraste o arquivo .xlsx aqui ou clique para selecionar</p>
-    <button class="btn-up" onclick="document.getElementById('file-input').click()">Selecionar arquivo .xlsx</button>
+    <button class="btn-up" onclick="selectFile()">Selecionar arquivo .xlsx</button>
     <div class="up-hint">Necessita aba "BASE" com colunas: DATA, STATUS, SETOR, NOME, DEPARTAMENTO</div>
   </div>
   <input type="file" id="file-input" accept=".xlsx,.xls">
@@ -215,7 +215,7 @@ tr.row-pct td:first-child{color:var(--text);font-family:'Inter',sans-serif;font-
       <span class="hdr-emp">👥 <span id="hdr-emp">—</span> func. ativos</span>
       <span class="hdr-clock" id="hdr-clock">--:--</span>
       <span class="hdr-refresh" id="hdr-refresh" onclick="forceRefresh()" title="Clique para atualizar agora">↻ —</span>
-      <button class="btn-reload" onclick="document.getElementById('file-input').click()">↩ Trocar arquivo</button>
+      <button class="btn-reload" onclick="selectFile()">↩ Trocar arquivo</button>
     </div>
   </div>
 
@@ -351,10 +351,9 @@ tickClock();
 
 // ─── AUTO-REFRESH ─────────────────────────────────────────────
 const AUTO_MS = 5 * 60 * 1000; // 5 minutos
-let _autoUrl = null, _autoTimer = null, _countTimer = null, _nextAt = null;
+let _fileHandle = null, _autoTimer = null, _countTimer = null, _nextAt = null;
 
-function setupAutoRefresh(filename){
-  _autoUrl = filename;
+function setupAutoRefresh(){
   scheduleNext();
 }
 
@@ -377,50 +376,63 @@ function updateCountdown(){
 }
 
 function forceRefresh(){
-  if(!_autoUrl)return;
+  if(!_fileHandle)return;
   if(_autoTimer)clearTimeout(_autoTimer);
   if(_countTimer)clearInterval(_countTimer);
   autoRefresh();
   scheduleNext();
 }
 
-function autoRefresh(){
-  if(!_autoUrl)return;
-  fetch(_autoUrl+'?_='+Date.now(),{cache:'no-store'})
-    .then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.arrayBuffer();})
-    .then(buf=>processBuffer(buf, true))
-    .catch(err=>console.warn('Auto-refresh falhou:',err));
-}
-
-// Tenta carregar automaticamente ao abrir a página
-function tryAutoLoad(){
-  const candidates=['CONTROLE_FALTAS__2026.xlsx','CONTROLE_FALTAS_2026.xlsx','CONTROLE_FALTAS.xlsx'];
-  function tryNext(i){
-    if(i>=candidates.length)return;
-    fetch(candidates[i]+'?_='+Date.now(),{cache:'no-store'})
-      .then(r=>{if(!r.ok)throw new Error();return r.arrayBuffer();})
-      .then(buf=>{_autoUrl=candidates[i];processBuffer(buf,true);setupAutoRefresh(candidates[i]);})
-      .catch(()=>tryNext(i+1));
+async function autoRefresh(){
+  if(!_fileHandle)return;
+  try{
+    const file=await _fileHandle.getFile();
+    const buf=await file.arrayBuffer();
+    processBuffer(buf, true);
+  }catch(e){
+    console.warn('Auto-refresh falhou:',e);
   }
-  tryNext(0);
 }
 
-// ─── UPLOAD MANUAL ───────────────────────────────────────────
+// ─── SELEÇÃO DE ARQUIVO (File System Access API) ─────────────
+async function selectFile(){
+  if(window.showOpenFilePicker){
+    try{
+      const [handle]=await window.showOpenFilePicker({
+        types:[{description:'Excel',accept:{'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx','.xls']}}],
+        multiple:false
+      });
+      _fileHandle=handle;
+      const file=await handle.getFile();
+      const buf=await file.arrayBuffer();
+      processBuffer(buf,false);
+      setupAutoRefresh();
+    }catch(e){
+      if(e.name!=='AbortError')console.error(e);
+    }
+  }else{
+    document.getElementById('file-input').click();
+  }
+}
+
+// ─── UPLOAD FALLBACK (drag-drop / input) ─────────────────────
 const dz=document.getElementById('drop-zone'),fi=document.getElementById('file-input');
 dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-over')});
 dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
-dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag-over');if(e.dataTransfer.files[0])loadFile(e.dataTransfer.files[0])});
-fi.addEventListener('change',e=>{if(e.target.files[0])loadFile(e.target.files[0])});
-dz.addEventListener('click',e=>{if(e.target.tagName!=='BUTTON')fi.click()});
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag-over');if(e.dataTransfer.files[0])loadFileFallback(e.dataTransfer.files[0])});
+fi.addEventListener('change',e=>{if(e.target.files[0])loadFileFallback(e.target.files[0])});
+dz.addEventListener('click',e=>{if(e.target.tagName!=='BUTTON')selectFile()});
 
 function ld(v){document.getElementById('loading').style.display=v?'flex':'none'}
 
-function loadFile(file){
+function loadFileFallback(file){
+  // Sem handle = sem auto-refresh real; mostra aviso no contador
   ld(true);
   const rdr=new FileReader();
   rdr.onload=e=>{
-    processBuffer(e.target.result, false);
-    setupAutoRefresh(file.name);
+    processBuffer(e.target.result,false);
+    const el=document.getElementById('hdr-refresh');
+    if(el)el.textContent='↻ sem auto';
     ld(false);
   };
   rdr.onerror=()=>{alert('Erro ao ler arquivo');ld(false)};
@@ -488,8 +500,6 @@ function processBuffer(buffer, silent){
   }catch(err){console.error(err);if(!silent)alert('Erro ao processar: '+err.message)}
 }
 
-// Auto-carregar se o Excel estiver na mesma pasta do servidor
-tryAutoLoad();
 
 function parseDp(hR,dr,sy,sm){
   const dh=dr[hR].map(c=>String(c||'').trim().toUpperCase());
