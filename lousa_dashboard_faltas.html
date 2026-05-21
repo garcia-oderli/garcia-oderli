@@ -394,6 +394,77 @@ async function autoRefresh(){
   }
 }
 
+// ─── INDEXEDDB — persistência do handle ──────────────────────
+const _IDB='lousa_v1', _IDB_STORE='handles', _IDB_KEY='xlsx';
+
+function idbOpen(){
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open(_IDB,1);
+    r.onupgradeneeded=e=>e.target.result.createObjectStore(_IDB_STORE);
+    r.onsuccess=e=>res(e.target.result);
+    r.onerror=()=>rej(r.error);
+  });
+}
+async function idbSave(handle){
+  const db=await idbOpen();
+  return new Promise((res,rej)=>{
+    const tx=db.transaction(_IDB_STORE,'readwrite');
+    tx.objectStore(_IDB_STORE).put(handle,_IDB_KEY);
+    tx.oncomplete=res; tx.onerror=()=>rej(tx.error);
+  });
+}
+async function idbLoad(){
+  const db=await idbOpen();
+  return new Promise((res,rej)=>{
+    const tx=db.transaction(_IDB_STORE,'readonly');
+    const r=tx.objectStore(_IDB_STORE).get(_IDB_KEY);
+    r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
+  });
+}
+
+// ─── RESTAURAR HANDLE AO ABRIR ───────────────────────────────
+async function tryRestoreHandle(){
+  if(!window.showOpenFilePicker)return;
+  try{
+    const handle=await idbLoad();
+    if(!handle)return;
+    const perm=await handle.queryPermission({mode:'read'});
+    if(perm==='granted'){
+      _fileHandle=handle;
+      const file=await handle.getFile();
+      const buf=await file.arrayBuffer();
+      processBuffer(buf,true);
+      setupAutoRefresh();
+    }else{
+      // Permissão expirou — mostra botão de 1 clique
+      showRestoreBtn(handle);
+    }
+  }catch(e){console.warn('Restore:',e);}
+}
+
+function showRestoreBtn(handle){
+  const zone=document.querySelector('.up-zone');
+  if(!zone)return;
+  const btn=document.createElement('button');
+  btn.className='btn-up';
+  btn.style.cssText='background:var(--green);color:#000;margin-top:14px;width:100%';
+  btn.textContent='↺ Retomar arquivo anterior';
+  btn.onclick=async()=>{
+    try{
+      const perm=await handle.requestPermission({mode:'read'});
+      if(perm==='granted'){
+        _fileHandle=handle;
+        const file=await handle.getFile();
+        const buf=await file.arrayBuffer();
+        processBuffer(buf,false);
+        await idbSave(handle);
+        setupAutoRefresh();
+      }
+    }catch(e){console.error(e);}
+  };
+  zone.appendChild(btn);
+}
+
 // ─── SELEÇÃO DE ARQUIVO (File System Access API) ─────────────
 async function selectFile(){
   if(window.showOpenFilePicker){
@@ -403,6 +474,7 @@ async function selectFile(){
         multiple:false
       });
       _fileHandle=handle;
+      await idbSave(handle);
       const file=await handle.getFile();
       const buf=await file.arrayBuffer();
       processBuffer(buf,false);
@@ -414,6 +486,9 @@ async function selectFile(){
     document.getElementById('file-input').click();
   }
 }
+
+// Tenta restaurar ao abrir a página
+tryRestoreHandle();
 
 // ─── UPLOAD FALLBACK (drag-drop / input) ─────────────────────
 const dz=document.getElementById('drop-zone'),fi=document.getElementById('file-input');
