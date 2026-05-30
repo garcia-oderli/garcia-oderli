@@ -83,8 +83,26 @@ export function NovoApontamentoForm({ ordens, funcionarios, maquinas }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [funcSearch, setFuncSearch] = useState('')
+  const [saldo, setSaldo] = useState<number | null>(null)
+  const [loadingSaldo, setLoadingSaldo] = useState(false)
 
   const selectedOrdem = ordens.find((o) => o.id === ordemId)
+
+  const handleOrdemChange = async (value: string) => {
+    setOrdemId(value)
+    setSaldo(null)
+    if (!value) return
+    const ordem = ordens.find((o) => o.id === value)
+    if (!ordem) return
+    setLoadingSaldo(true)
+    const supabase = createClient()
+    const { data } = await (supabase.from('apontamentos') as any)
+      .select('quantidade_produzida')
+      .eq('ordem_producao_id', value)
+    const totalProduzido = (data ?? []).reduce((acc: number, a: any) => acc + Number(a.quantidade_produzida), 0)
+    setSaldo(Number(ordem.quantidade_planejada) - totalProduzido)
+    setLoadingSaldo(false)
+  }
 
   const filteredFuncionarios = funcionarios.filter(
     (f) =>
@@ -103,6 +121,8 @@ export function NovoApontamentoForm({ ordens, funcionarios, maquinas }: Props) {
     if (!turno) return setError('Selecione o Turno.')
     if (!qtdProduzida || Number(qtdProduzida) < 0)
       return setError('Informe a quantidade produzida (mínimo 0).')
+    if (saldo !== null && Number(qtdProduzida) > saldo)
+      return setError(`Quantidade excede o saldo da OP (${saldo.toLocaleString('pt-BR')} disponível)`)
     if (!dataInicio) return setError('Informe a data/hora de início.')
     if (!dataFim) return setError('Informe a data/hora de fim.')
     if (new Date(dataFim) <= new Date(dataInicio))
@@ -181,7 +201,7 @@ export function NovoApontamentoForm({ ordens, funcionarios, maquinas }: Props) {
         <CardContent className="space-y-4">
           <div>
             {fieldLabel('Ordem de Produção *', 'ordem')}
-            <Select value={ordemId} onValueChange={setOrdemId}>
+            <Select value={ordemId} onValueChange={handleOrdemChange}>
               <SelectTrigger id="ordem">
                 <SelectValue placeholder="Selecione a OP..." />
               </SelectTrigger>
@@ -194,6 +214,28 @@ export function NovoApontamentoForm({ ordens, funcionarios, maquinas }: Props) {
               </SelectContent>
             </Select>
           </div>
+
+          {selectedOrdem && loadingSaldo && (
+            <p style={{ fontSize: '13px', color: '#888888' }}>Calculando saldo disponível...</p>
+          )}
+          {selectedOrdem && !loadingSaldo && saldo !== null && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              borderRadius: '6px',
+              background: saldo > 0 ? 'rgba(76,175,80,0.08)' : 'rgba(244,67,54,0.08)',
+              border: `1px solid ${saldo > 0 ? 'rgba(76,175,80,0.3)' : 'rgba(244,67,54,0.3)'}`,
+              padding: '8px 14px',
+            }}>
+              <p style={{ fontSize: '13px', color: '#888888', margin: 0 }}>
+                Saldo disponível:{' '}
+                <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700, color: saldo > 0 ? '#4CAF50' : '#F44336' }}>
+                  {saldo.toLocaleString('pt-BR')} {selectedOrdem.produtos?.unidade_medida}
+                </span>
+              </p>
+            </div>
+          )}
 
           {selectedOrdem && (
             <div style={{
