@@ -235,6 +235,7 @@ function SetorCard({ s }: { s: SetorStats }) {
             {s.setor}
           </h2>
           <ExternalLink size={12} style={{ color: '#555' }} />
+        </Link>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           {hasActivity && (
             <span style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: '#4CAF50', boxShadow: '0 0 6px #4CAF5099' }} />
