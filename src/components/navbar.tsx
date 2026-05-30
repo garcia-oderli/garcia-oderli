@@ -55,18 +55,35 @@ export function Navbar() {
       <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 24px' }}>
         <div style={{ display: 'flex', height: '56px', alignItems: 'center', justifyContent: 'space-between' }}>
           {/* Logo */}
-          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
-            <Factory style={{ width: '22px', height: '22px', color: '#F5A623' }} />
-            <span style={{
-              fontFamily: 'Barlow Condensed, sans-serif',
-              fontWeight: 700,
-              fontSize: '18px',
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              color: '#F5A623',
-            }}>
-              Apontamento de Produção
-            </span>
+          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '14px', textDecoration: 'none' }}>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 48" style={{ height: '32px', flexShrink: 0 }}>
+              <rect width="260" height="1.5" fill="#F5A623" rx="1"/>
+              <rect x="10" y="31" width="5" height="8"  fill="#2A2A2A" rx="1"/>
+              <rect x="18" y="22" width="5" height="17" fill="#F5A623" rx="1"/>
+              <rect x="26" y="27" width="5" height="12" fill="#2A2A2A" rx="1"/>
+              <rect x="34" y="16" width="5" height="23" fill="#F5A623" rx="1"/>
+              <polygon points="36.5,9 42,16 31,16" fill="#F5A623"/>
+              <text x="48" y="32" fontFamily="'Barlow Condensed',sans-serif" fontSize="21" fontWeight="700" fill="#F5F5F5" letterSpacing="2">RITMOPROD</text>
+              <text x="49" y="42" fontFamily="'IBM Plex Mono',monospace" fontSize="5.5" fill="#888" letterSpacing="2">ANÁLISE · PRODUÇÃO · RITMO</text>
+            </svg>
+            <div style={{ borderLeft: '1px solid #2A2A2A', paddingLeft: '14px' }}>
+              <div style={{
+                fontFamily: 'Barlow Condensed, sans-serif',
+                fontWeight: 700,
+                fontSize: '13px',
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                color: '#F5F5F5',
+                lineHeight: 1.2,
+              }}>Apontamento de Produção</div>
+              <div style={{
+                fontFamily: 'IBM Plex Mono, monospace',
+                fontSize: '9px',
+                color: '#888888',
+                letterSpacing: '0.15em',
+                textTransform: 'uppercase',
+              }}>v1</div>
+            </div>
           </Link>
 
           {/* Nav */}
