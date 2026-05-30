@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Users, Plus, Pencil, Trash2, Check, X } from 'lucide-react'
+import { Users, Plus, Pencil, Trash2, Check, X, QrCode } from 'lucide-react'
+import Link from 'next/link'
 
 export default function FuncionariosPage() {
   const [funcionarios, setFuncionarios] = useState<any[]>([])
@@ -146,8 +147,12 @@ export default function FuncionariosPage() {
 
       {/* List */}
       <div className="rounded-lg overflow-hidden" style={{ background: '#1C1C1C', border: '1px solid #2A2A2A' }}>
-        <div className="px-4 py-3" style={{ borderBottom: '1px solid #2A2A2A' }}>
+        <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid #2A2A2A' }}>
           <h2 className="text-base font-semibold" style={{ fontFamily: 'Barlow Condensed, sans-serif', color: '#F5F5F5' }}>LISTA DE FUNCIONÁRIOS</h2>
+          <Link href="/cadastros/funcionarios/qr"
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#F5A623', textDecoration: 'none', border: '1px solid #F5A62366', borderRadius: '4px', padding: '4px 10px' }}>
+            <QrCode size={13} /> Imprimir Crachás
+          </Link>
         </div>
         {funcionarios.length === 0 ? (
           <div className="py-12 text-center" style={{ color: '#888888' }}>
