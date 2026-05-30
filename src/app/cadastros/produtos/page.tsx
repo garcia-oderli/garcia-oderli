@@ -6,7 +6,8 @@ export const metadata = {
   title: 'Produtos — Apontamento de Produção',
 }
 
-export default async function ProdutosPage() {
+export default async function ProdutosPage({ searchParams }: { searchParams: Promise<{ erro?: string; ok?: string }> }) {
+  const { erro, ok } = await searchParams
   const supabase = await createClient()
   let produtos: any[] = []
 
@@ -34,6 +35,17 @@ export default async function ProdutosPage() {
         </div>
         <Package style={{ color: '#F5A623' }} className="h-8 w-8" />
       </div>
+
+      {erro && (
+        <div className="rounded px-4 py-3 text-sm" style={{ background: '#2a1212', border: '1px solid #F44336', color: '#F44336' }}>
+          Erro: {decodeURIComponent(erro)}
+        </div>
+      )}
+      {ok && (
+        <div className="rounded px-4 py-3 text-sm" style={{ background: '#122a12', border: '1px solid #4CAF50', color: '#4CAF50' }}>
+          Produto salvo com sucesso!
+        </div>
+      )}
 
       {/* Create Form */}
       <div
