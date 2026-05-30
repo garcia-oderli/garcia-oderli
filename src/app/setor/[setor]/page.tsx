@@ -20,6 +20,8 @@ interface MetaSetor {
   meta_dia: number
   turno_inicio: string
   turno_fim: string
+  intervalo_inicio: string | null
+  intervalo_fim: string | null
   unidade: string
 }
 
@@ -53,15 +55,23 @@ function eficienciaColor(e: number) {
   return '#F44336'
 }
 
-/** Splits shift into 1-hour buckets, last bucket shorter if needed */
-function buildHoras(turnoInicio: string, turnoFim: string, hoje: string): { inicio: Date; fim: Date }[] {
-  const [hi, hm] = turnoInicio.split(':').map(Number)
-  const [hf, fm] = turnoFim.split(':').map(Number)
+/** Splits shift into 1-hour buckets, skipping the lunch interval */
+function buildHoras(turnoInicio: string, turnoFim: string, hoje: string, intervaloInicio?: string | null, intervaloFim?: string | null): { inicio: Date; fim: Date }[] {
+  const parse = (t: string) => { const [h, m] = t.split(':').map(Number); return new Date(`${hoje}T${pad(h)}:${pad(m)}:00`) }
+  const intStart = intervaloInicio ? parse(intervaloInicio) : null
+  const intEnd = intervaloFim ? parse(intervaloFim) : null
   const buckets: { inicio: Date; fim: Date }[] = []
-  let cur = new Date(`${hoje}T${pad(hi)}:${pad(hm)}:00`)
-  const end = new Date(`${hoje}T${pad(hf)}:${pad(fm)}:00`)
+  let cur = parse(turnoInicio)
+  const end = parse(turnoFim)
   while (cur < end) {
-    const next = new Date(Math.min(cur.getTime() + 3600000, end.getTime()))
+    // Skip over lunch interval
+    if (intStart && intEnd && cur >= intStart && cur < intEnd) {
+      cur = new Date(intEnd)
+      continue
+    }
+    let next = new Date(Math.min(cur.getTime() + 3600000, end.getTime()))
+    // Clip bucket at interval start
+    if (intStart && intEnd && cur < intStart && next > intStart) next = new Date(intStart)
     buckets.push({ inicio: new Date(cur), fim: new Date(next) })
     cur = next
   }
@@ -101,8 +111,10 @@ export default function SetorTVPage() {
 
     const metaData: MetaSetor = metaRes.data ?? {
       meta_dia: 0,
-      turno_inicio: '05:00',
+      turno_inicio: '07:00',
       turno_fim: '17:00',
+      intervalo_inicio: '11:00',
+      intervalo_fim: '12:12',
       unidade: 'pç',
     }
     setMeta(metaData)
@@ -111,7 +123,7 @@ export default function SetorTVPage() {
       a.maquinas?.setor === setor || a.funcionarios?.setor === setor
     )
 
-    const buckets = buildHoras(metaData.turno_inicio, metaData.turno_fim, hoje)
+    const buckets = buildHoras(metaData.turno_inicio, metaData.turno_fim, hoje, metaData.intervalo_inicio, metaData.intervalo_fim)
     const totalMinutos = buckets.reduce((s, b) => s + (b.fim.getTime() - b.inicio.getTime()) / 60000, 0)
 
     let acum = 0
@@ -380,8 +392,10 @@ export default function SetorTVPage() {
 
 function MetaModal({ setor, onClose, onSaved }: { setor: string; onClose: () => void; onSaved: () => void }) {
   const [metaDia, setMetaDia] = useState('')
-  const [turnoInicio, setTurnoInicio] = useState('05:00')
+  const [turnoInicio, setTurnoInicio] = useState('07:00')
   const [turnoFim, setTurnoFim] = useState('17:00')
+  const [intervaloInicio, setIntervaloInicio] = useState('11:00')
+  const [intervaloFim, setIntervaloFim] = useState('12:12')
   const [unidade, setUnidade] = useState('pç')
   const [saving, setSaving] = useState(false)
 
@@ -393,6 +407,8 @@ function MetaModal({ setor, onClose, onSaved }: { setor: string; onClose: () => 
           setMetaDia(String(data.meta_dia))
           setTurnoInicio(data.turno_inicio.slice(0, 5))
           setTurnoFim(data.turno_fim.slice(0, 5))
+          setIntervaloInicio(data.intervalo_inicio ? data.intervalo_inicio.slice(0, 5) : '11:00')
+          setIntervaloFim(data.intervalo_fim ? data.intervalo_fim.slice(0, 5) : '12:12')
           setUnidade(data.unidade)
         }
       })
@@ -408,6 +424,8 @@ function MetaModal({ setor, onClose, onSaved }: { setor: string; onClose: () => 
       meta_dia: parseFloat(metaDia) || 0,
       turno_inicio: turnoInicio,
       turno_fim: turnoFim,
+      intervalo_inicio: intervaloInicio || null,
+      intervalo_fim: intervaloFim || null,
       unidade,
     }, { onConflict: 'setor,data' })
     setSaving(false)
@@ -439,6 +457,19 @@ function MetaModal({ setor, onClose, onSaved }: { setor: string; onClose: () => 
             <div>
               <label style={{ fontSize: '11px', color: '#888', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Fim Turno</label>
               <input type="time" value={turnoFim} onChange={e => setTurnoFim(e.target.value)} style={inp} />
+            </div>
+          </div>
+          <div style={{ borderTop: '1px solid #2A2A2A', paddingTop: '12px' }}>
+            <div style={{ fontSize: '11px', color: '#555', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '10px' }}>Intervalo (almoço)</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div>
+                <label style={{ fontSize: '11px', color: '#888', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Início</label>
+                <input type="time" value={intervaloInicio} onChange={e => setIntervaloInicio(e.target.value)} style={inp} />
+              </div>
+              <div>
+                <label style={{ fontSize: '11px', color: '#888', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Fim</label>
+                <input type="time" value={intervaloFim} onChange={e => setIntervaloFim(e.target.value)} style={inp} />
+              </div>
             </div>
           </div>
         </div>
