@@ -50,11 +50,13 @@ export function QrScanner({ onResult, onClose }: Props) {
 
   return (
     <div style={{
-      position: 'fixed', inset: 0,
-      background: 'rgba(0,0,0,0.95)',
+      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+      width: '100%', height: '100%',
+      background: 'rgba(0,0,0,0.97)',
       display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
-      zIndex: 9999, padding: '24px',
+      zIndex: 99999, padding: '24px',
+      boxSizing: 'border-box',
     }}>
       <div style={{ width: '100%', maxWidth: '360px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
