@@ -130,8 +130,8 @@ export function NovoApontamentoForm({ ordens, funcionarios, maquinas }: Props) {
 
     const supabase = createClient()
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: ordem } = await (supabase.from('ordens_producao') as any)
+    const { data: ordem } = await supabase
+      .from('ordens_producao')
       .select('produto_id')
       .eq('id', ordemId)
       .single()
@@ -140,22 +140,24 @@ export function NovoApontamentoForm({ ordens, funcionarios, maquinas }: Props) {
 
     startTransition(async () => {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { error: dbError } = await (supabase.from('apontamentos') as any).insert({
-          ordem_producao_id: ordemId,
-          produto_id: (ordem as { produto_id: string }).produto_id,
-          funcionario_id: funcionarioId,
-          maquina_id: maquinaId,
-          quantidade_produzida: Number(qtdProduzida),
-          quantidade_refugo: Number(qtdRefugo) || 0,
-          quantidade_retrabalho: Number(qtdRetrabalho) || 0,
-          data_inicio: new Date(dataInicio).toISOString(),
-          data_fim: new Date(dataFim).toISOString(),
-          turno: turno as TurnoEnum,
-          observacoes: observacoes.trim() || null,
+        const { data: result, error: rpcError } = await supabase.rpc('registrar_apontamento', {
+          p_ordem_producao_id: ordemId,
+          p_produto_id: (ordem as { produto_id: string }).produto_id,
+          p_funcionario_id: funcionarioId,
+          p_maquina_id: maquinaId,
+          p_quantidade_produzida: Number(qtdProduzida),
+          p_quantidade_refugo: Number(qtdRefugo) || 0,
+          p_quantidade_retrabalho: Number(qtdRetrabalho) || 0,
+          p_data_inicio: new Date(dataInicio).toISOString(),
+          p_data_fim: new Date(dataFim).toISOString(),
+          p_turno: turno as TurnoEnum,
+          p_observacoes: observacoes.trim() || null,
         })
 
-        if (dbError) throw new Error((dbError as { message: string }).message)
+        if (rpcError) throw new Error(rpcError.message)
+
+        const res = result as { ok: boolean; erro?: string }
+        if (!res.ok) throw new Error(res.erro ?? 'Erro ao registrar apontamento.')
 
         setSuccess(true)
         setTimeout(() => router.push('/apontamentos'), 1500)
