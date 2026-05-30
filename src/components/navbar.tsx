@@ -164,6 +164,27 @@ export function Navbar() {
               )}
             </div>
 
+            {/* CTA Rápido */}
+            <Link
+              href="/r"
+              style={{
+                marginLeft: '8px',
+                padding: '7px 14px',
+                fontSize: '13px',
+                fontFamily: 'Barlow Condensed, sans-serif',
+                fontWeight: 700,
+                letterSpacing: '0.05em',
+                textTransform: 'uppercase',
+                background: 'transparent',
+                border: '1px solid #F5A623',
+                color: '#F5A623',
+                textDecoration: 'none',
+                borderRadius: '4px',
+              }}
+            >
+              ⚡ Rápido
+            </Link>
+
             {/* CTA */}
             <Link
               href="/apontamentos/novo"
