@@ -87,7 +87,7 @@ export function Navbar() {
               <Zap size={13} /> Rápido
             </Link>
             <button
-              onClick={() => setMobileOpen(!mobileOpen)}
+              onClick={() => { setMobileOpen(!mobileOpen); setCadastrosOpen(false) }}
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#F5F5F5', padding: '4px' }}
             >
               {mobileOpen ? <X size={22} /> : <Menu size={22} />}

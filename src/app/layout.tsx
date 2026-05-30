@@ -5,6 +5,7 @@ import { Navbar } from '@/components/navbar'
 export const metadata: Metadata = {
   title: 'Apontamento de Produção',
   description: 'Sistema de apontamento de produção industrial',
+  viewport: 'width=device-width, initial-scale=1, maximum-scale=1',
 }
 
 export default function RootLayout({
@@ -16,7 +17,7 @@ export default function RootLayout({
     <html lang="pt-BR" className="h-full" style={{ background: '#111111' }}>
       <body className="min-h-full antialiased" style={{ background: '#111111', color: '#F5F5F5' }}>
         <Navbar />
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">{children}</main>
+        <main style={{ maxWidth: '1280px', margin: '0 auto', padding: '16px', boxSizing: 'border-box' }}>{children}</main>
       </body>
     </html>
   )
