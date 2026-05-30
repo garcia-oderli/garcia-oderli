@@ -10,17 +10,28 @@ export const metadata = {
 export default async function NovoApontamentoPage() {
   const supabase = await createClient()
 
-  const [ordensRes, funcionariosRes, maquinasRes] = await Promise.all([
-    supabase
-      .from('ordens_producao')
-      .select(
-        'id, numero, quantidade_planejada, data_prevista, status, produtos(codigo, descricao, unidade_medida)'
-      )
-      .in('status', ['ABERTA', 'EM_ANDAMENTO'])
-      .order('numero'),
-    supabase.from('funcionarios').select('id, matricula, nome, setor').order('nome'),
-    supabase.from('maquinas').select('id, codigo, descricao, setor').order('codigo'),
-  ])
+  let ordensRes: { data: any[] | null } = { data: null }
+  let funcionariosRes: { data: any[] | null } = { data: null }
+  let maquinasRes: { data: any[] | null } = { data: null }
+
+  if (supabase) {
+    try {
+      const [o, f, m] = await Promise.all([
+        supabase
+          .from('ordens_producao')
+          .select(
+            'id, numero, quantidade_planejada, data_prevista, status, produtos(codigo, descricao, unidade_medida)'
+          )
+          .in('status', ['ABERTA', 'EM_ANDAMENTO'])
+          .order('numero'),
+        supabase.from('funcionarios').select('id, matricula, nome, setor').order('nome'),
+        supabase.from('maquinas').select('id, codigo, descricao, setor').order('codigo'),
+      ])
+      ordensRes = o
+      funcionariosRes = f
+      maquinasRes = m
+    } catch {}
+  }
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">

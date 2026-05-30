@@ -48,24 +48,35 @@ export default async function DashboardPage() {
   todayEnd.setHours(23, 59, 59, 999)
 
   type StatsRow = { quantidade_produzida: number; quantidade_refugo: number; quantidade_retrabalho: number }
-  const { data: todayApontamentosRaw } = await supabase
-    .from('apontamentos')
-    .select('quantidade_produzida, quantidade_refugo, quantidade_retrabalho')
-    .gte('created_at', today.toISOString())
-    .lte('created_at', todayEnd.toISOString())
-  const todayApontamentos = (todayApontamentosRaw ?? []) as unknown as StatsRow[]
 
-  const { data: recentApontamentos } = await supabase
-    .from('apontamentos')
-    .select(
-      `id, quantidade_produzida, quantidade_refugo, quantidade_retrabalho, data_inicio, turno, created_at,
-      ordens_producao(numero),
-      produtos(codigo, descricao, unidade_medida),
-      funcionarios(matricula, nome),
-      maquinas(codigo, descricao)`
-    )
-    .order('created_at', { ascending: false })
-    .limit(10)
+  let todayApontamentos: StatsRow[] = []
+  let recentApontamentos: any[] = []
+
+  if (supabase) {
+    try {
+      const { data: todayApontamentosRaw } = await supabase
+        .from('apontamentos')
+        .select('quantidade_produzida, quantidade_refugo, quantidade_retrabalho')
+        .gte('created_at', today.toISOString())
+        .lte('created_at', todayEnd.toISOString())
+      todayApontamentos = (todayApontamentosRaw ?? []) as unknown as StatsRow[]
+    } catch {}
+
+    try {
+      const { data } = await supabase
+        .from('apontamentos')
+        .select(
+          `id, quantidade_produzida, quantidade_refugo, quantidade_retrabalho, data_inicio, turno, created_at,
+          ordens_producao(numero),
+          produtos(codigo, descricao, unidade_medida),
+          funcionarios(matricula, nome),
+          maquinas(codigo, descricao)`
+        )
+        .order('created_at', { ascending: false })
+        .limit(10)
+      recentApontamentos = data ?? []
+    } catch {}
+  }
 
   const totalProduzido = todayApontamentos.reduce(
     (sum, a) => sum + Number(a.quantidade_produzida),
@@ -82,8 +93,7 @@ export default async function DashboardPage() {
   const totalBruto = totalProduzido + totalRefugo + totalRetrabalho
   const eficiencia = totalBruto > 0 ? ((totalProduzido / totalBruto) * 100).toFixed(1) : '—'
 
-
-  const items = (recentApontamentos ?? []) as unknown as ApontamentoComRelacoes[]
+  const items = recentApontamentos as unknown as ApontamentoComRelacoes[]
 
   return (
     <div className="space-y-6">

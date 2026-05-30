@@ -60,47 +60,63 @@ export default async function ApontamentosPage({
   const from = (page - 1) * PAGE_SIZE
   const to = from + PAGE_SIZE - 1
 
-  // Build query
-  let query = supabase
-    .from('apontamentos')
-    .select(
-      `id, quantidade_produzida, quantidade_refugo, quantidade_retrabalho, data_inicio, data_fim, turno, observacoes, created_at,
-      ordens_producao(numero),
-      produtos(codigo, descricao, unidade_medida),
-      funcionarios(matricula, nome),
-      maquinas(codigo, descricao)`,
-      { count: 'exact' }
-    )
-    .order('created_at', { ascending: false })
-    .range(from, to)
+  let data: any[] | null = null
+  let count: number | null = null
+  let funcionariosRes: { data: any[] | null } = { data: null }
+  let maquinasRes: { data: any[] | null } = { data: null }
 
-  if (sp.data_inicio) {
-    query = query.gte('data_inicio', new Date(sp.data_inicio).toISOString())
-  }
-  if (sp.data_fim) {
-    const end = new Date(sp.data_fim)
-    end.setHours(23, 59, 59, 999)
-    query = query.lte('data_inicio', end.toISOString())
-  }
-  if (sp.turno && sp.turno !== 'all') {
-    query = query.eq('turno', sp.turno)
-  }
-  if (sp.funcionario_id && sp.funcionario_id !== 'all') {
-    query = query.eq('funcionario_id', sp.funcionario_id)
-  }
-  if (sp.maquina_id && sp.maquina_id !== 'all') {
-    query = query.eq('maquina_id', sp.maquina_id)
+  if (supabase) {
+    try {
+      // Build query
+      let query = supabase
+        .from('apontamentos')
+        .select(
+          `id, quantidade_produzida, quantidade_refugo, quantidade_retrabalho, data_inicio, data_fim, turno, observacoes, created_at,
+          ordens_producao(numero),
+          produtos(codigo, descricao, unidade_medida),
+          funcionarios(matricula, nome),
+          maquinas(codigo, descricao)`,
+          { count: 'exact' }
+        )
+        .order('created_at', { ascending: false })
+        .range(from, to)
+
+      if (sp.data_inicio) {
+        query = query.gte('data_inicio', new Date(sp.data_inicio).toISOString())
+      }
+      if (sp.data_fim) {
+        const end = new Date(sp.data_fim)
+        end.setHours(23, 59, 59, 999)
+        query = query.lte('data_inicio', end.toISOString())
+      }
+      if (sp.turno && sp.turno !== 'all') {
+        query = query.eq('turno', sp.turno)
+      }
+      if (sp.funcionario_id && sp.funcionario_id !== 'all') {
+        query = query.eq('funcionario_id', sp.funcionario_id)
+      }
+      if (sp.maquina_id && sp.maquina_id !== 'all') {
+        query = query.eq('maquina_id', sp.maquina_id)
+      }
+
+      const result = await query
+      data = result.data
+      count = result.count
+    } catch {}
+
+    try {
+      // Fetch filter options
+      const [fr, mr] = await Promise.all([
+        supabase.from('funcionarios').select('id, matricula, nome, setor').order('nome'),
+        supabase.from('maquinas').select('id, codigo, descricao, setor').order('codigo'),
+      ])
+      funcionariosRes = fr
+      maquinasRes = mr
+    } catch {}
   }
 
-  const { data, count } = await query
   const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE)
   const items = (data ?? []) as unknown as ApontamentoComRelacoes[]
-
-  // Fetch filter options
-  const [funcionariosRes, maquinasRes] = await Promise.all([
-    supabase.from('funcionarios').select('id, matricula, nome, setor').order('nome'),
-    supabase.from('maquinas').select('id, codigo, descricao, setor').order('codigo'),
-  ])
 
   return (
     <div className="space-y-6">
