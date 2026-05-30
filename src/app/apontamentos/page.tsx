@@ -229,7 +229,7 @@ function ApontamentosPageInner() {
                       {['OP', 'Produto', 'Funcionário', 'Máquina', 'Produzido', 'Refugo', 'Retrabalho', 'Efic.', 'Turno', 'Início', 'Fim', 'Ações'].map((h, i) => (
                         <th key={h}
                           className={`px-4 py-3 font-bold text-xs tracking-widest uppercase ${i >= 4 && i <= 7 ? 'text-right' : 'text-left'}`}
-                          style={{ color: '#888888', fontFamily: 'Barlow Condensed, sans-serif', whiteSpace: 'nowrap' }}>
+                          style={{ color: '#888888', fontFamily: 'Barlow Condensed, sans-serif', whiteSpace: 'nowrap', ...(h === 'Ações' ? { position: 'sticky', right: 0, background: '#222222', boxShadow: '-2px 0 8px rgba(0,0,0,0.5)' } : {}) }}>
                           {h}
                         </th>
                       ))}
@@ -293,7 +293,7 @@ function ApontamentosPageInner() {
                                 onChange={e => setEditValues(v => ({ ...v, data_fim: e.target.value }))}
                                 style={{ ...inputStyle, colorScheme: 'dark', width: '160px' }} />
                             </td>
-                            <td className="px-4 py-2">
+                            <td className="px-4 py-2" style={{ position: 'sticky', right: 0, background: '#1A1A2A', boxShadow: '-2px 0 8px rgba(0,0,0,0.5)' }}>
                               <div className="flex gap-2">
                                 <button onClick={() => saveEdit(a.id)} disabled={editSaving}
                                   className="rounded px-2 py-1 text-xs flex items-center gap-1 hover:opacity-80 disabled:opacity-50"
@@ -348,7 +348,7 @@ function ApontamentosPageInner() {
                           <td className="px-4 py-3 whitespace-nowrap" style={{ color: '#888888', fontFamily: 'IBM Plex Mono, monospace', fontSize: '11px' }}>
                             {formatDateTime(a.data_fim)}
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3" style={{ position: 'sticky', right: 0, background: '#1C1C1C', boxShadow: '-2px 0 8px rgba(0,0,0,0.5)' }}>
                             <div className="flex gap-2">
                               <button onClick={() => startEdit(a)}
                                 className="rounded px-2 py-1 text-xs flex items-center gap-1 hover:opacity-80"
