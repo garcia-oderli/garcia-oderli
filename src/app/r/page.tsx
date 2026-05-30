@@ -23,20 +23,17 @@ function getTurnoLabel(t: string) {
 
 const STORAGE_KEY = 'ritmoprod_sessao'
 
-function salvarSessao(maquinaId: string, maquinaCodigo: string, funcionario: any, turno: string) {
+function salvarSessao(maquinaId: string, maquinaCodigo: string, funcionario: any) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ maquinaId, maquinaCodigo, funcionario, turno, salvoEm: Date.now() }))
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ maquinaId, maquinaCodigo, funcionario }))
   } catch {}
 }
 
-function carregarSessao(turnoAtual: string) {
+function carregarSessao() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
-    const s = JSON.parse(raw)
-    // Invalida se mudou o turno
-    if (s.turno !== turnoAtual) { localStorage.removeItem(STORAGE_KEY); return null }
-    return s
+    return JSON.parse(raw)
   } catch { return null }
 }
 
@@ -71,8 +68,8 @@ export default function ApontamentoRapido() {
       setMaquinas(data ?? [])
     })
 
-    // Tenta recuperar sessão do turno atual
-    const sessao = carregarSessao(getTurnoAtual())
+    // Tenta recuperar sessão salva
+    const sessao = carregarSessao()
     if (sessao) {
       setMaquinaId(sessao.maquinaId)
       setMaquinaCodigo(sessao.maquinaCodigo)
@@ -122,7 +119,7 @@ export default function ApontamentoRapido() {
     if (!data) { setErro('Matrícula não encontrada.'); return }
     setFuncionario(data)
     // Salva sessão no localStorage para o turno atual
-    salvarSessao(maquinaId, maquinaCodigo, data, turno)
+    salvarSessao(maquinaId, maquinaCodigo, data)
     await carregarOPs()
   }
 
