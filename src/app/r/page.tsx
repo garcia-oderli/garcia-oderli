@@ -21,6 +21,29 @@ function getTurnoLabel(t: string) {
   return 'Noite'
 }
 
+const STORAGE_KEY = 'ritmoprod_sessao'
+
+function salvarSessao(maquinaId: string, maquinaCodigo: string, funcionario: any, turno: string) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ maquinaId, maquinaCodigo, funcionario, turno, salvoEm: Date.now() }))
+  } catch {}
+}
+
+function carregarSessao(turnoAtual: string) {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return null
+    const s = JSON.parse(raw)
+    // Invalida se mudou o turno
+    if (s.turno !== turnoAtual) { localStorage.removeItem(STORAGE_KEY); return null }
+    return s
+  } catch { return null }
+}
+
+function limparSessao() {
+  try { localStorage.removeItem(STORAGE_KEY) } catch {}
+}
+
 export default function ApontamentoRapido() {
   const [etapa, setEtapa] = useState<Etapa>('maquina')
   const [maquinas, setMaquinas] = useState<any[]>([])
@@ -47,11 +70,42 @@ export default function ApontamentoRapido() {
     createClient().from('maquinas').select('id, codigo, descricao, setor').order('codigo').then(({ data }) => {
       setMaquinas(data ?? [])
     })
+
+    // Tenta recuperar sessão do turno atual
+    const sessao = carregarSessao(getTurnoAtual())
+    if (sessao) {
+      setMaquinaId(sessao.maquinaId)
+      setMaquinaCodigo(sessao.maquinaCodigo)
+      setFuncionario(sessao.funcionario)
+      // Busca OPs direto
+      carregarOPs(sessao.maquinaId)
+    }
   }, [])
 
   useEffect(() => {
     if (inputRef.current) inputRef.current.focus()
   }, [etapa])
+
+  const carregarOPs = async (maqId?: string) => {
+    const supabase = createClient()
+    const { data: ops } = await supabase
+      .from('ordens_producao')
+      .select('id, numero, quantidade_planejada, produto_id, produtos(codigo, descricao, unidade_medida)')
+      .in('status', ['ABERTA', 'EM_ANDAMENTO'])
+      .order('numero')
+
+    const opsComSaldo = await Promise.all((ops ?? []).map(async (op: any) => {
+      const { data: apts } = await supabase.from('apontamentos')
+        .select('quantidade_produzida, quantidade_refugo, quantidade_retrabalho')
+        .eq('ordem_producao_id', op.id)
+      const total = (apts ?? []).reduce((acc: number, a: any) =>
+        acc + Number(a.quantidade_produzida) + Number(a.quantidade_refugo) + Number(a.quantidade_retrabalho), 0)
+      return { ...op, saldo: Number(op.quantidade_planejada) - total }
+    }))
+
+    setOrdens(opsComSaldo.filter((o: any) => o.saldo > 0))
+    setEtapa('op')
+  }
 
   const confirmarMaquina = (id: string, codigo: string) => {
     setMaquinaId(id)
@@ -67,27 +121,9 @@ export default function ApontamentoRapido() {
     const { data } = await createClient().from('funcionarios').select('id, nome, matricula, setor').eq('matricula', valor).single()
     if (!data) { setErro('Matrícula não encontrada.'); return }
     setFuncionario(data)
-
-    // Busca OPs abertas + saldo
-    const supabase = createClient()
-    const { data: ops } = await supabase
-      .from('ordens_producao')
-      .select('id, numero, quantidade_planejada, produto_id, produtos(codigo, descricao, unidade_medida)')
-      .in('status', ['ABERTA', 'EM_ANDAMENTO'])
-      .order('numero')
-
-    // Calcula saldo de cada OP
-    const opsComSaldo = await Promise.all((ops ?? []).map(async (op: any) => {
-      const { data: apts } = await supabase.from('apontamentos')
-        .select('quantidade_produzida, quantidade_refugo, quantidade_retrabalho')
-        .eq('ordem_producao_id', op.id)
-      const total = (apts ?? []).reduce((acc: number, a: any) =>
-        acc + Number(a.quantidade_produzida) + Number(a.quantidade_refugo) + Number(a.quantidade_retrabalho), 0)
-      return { ...op, saldo: Number(op.quantidade_planejada) - total }
-    }))
-
-    setOrdens(opsComSaldo.filter((o: any) => o.saldo > 0))
-    setEtapa('op')
+    // Salva sessão no localStorage para o turno atual
+    salvarSessao(maquinaId, maquinaCodigo, data, turno)
+    await carregarOPs()
   }
 
   const selecionarOP = (op: any) => {
@@ -156,12 +192,19 @@ export default function ApontamentoRapido() {
     }
   }
 
-  const reiniciar = () => {
-    setEtapa('maquina')
-    setMaquinaId('')
-    setMaquinaCodigo('')
-    setMatricula('')
-    setFuncionario(null)
+  const reiniciar = (limparTudo = false) => {
+    if (limparTudo) {
+      limparSessao()
+      setMaquinaId('')
+      setMaquinaCodigo('')
+      setMatricula('')
+      setFuncionario(null)
+      setEtapa('maquina')
+    } else {
+      // Mantém máquina e funcionário, volta para seleção de OP
+      setEtapa('op')
+      carregarOPs()
+    }
     setOrdens([])
     setOrdemId('')
     setOrdem(null)
@@ -190,13 +233,26 @@ export default function ApontamentoRapido() {
 
   // Contexto do turno no topo
   const topBar = (
-    <div style={{ width: '100%', maxWidth: '420px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-      <span style={{ fontSize: '13px', color: '#888888' }}>
-        Turno: <strong style={{ color: '#F5A623' }}>{getTurnoLabel(turno)}</strong>
-      </span>
-      <Link href="/apontamentos/novo" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#555', textDecoration: 'none' }}>
-        <Settings size={13} /> Formulário completo
-      </Link>
+    <div style={{ width: '100%', maxWidth: '420px', marginBottom: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontSize: '13px', color: '#888888' }}>
+          Turno: <strong style={{ color: '#F5A623' }}>{getTurnoLabel(turno)}</strong>
+        </span>
+        <Link href="/apontamentos/novo" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#555', textDecoration: 'none' }}>
+          <Settings size={13} /> Completo
+        </Link>
+      </div>
+      {funcionario && maquinaCodigo && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', background: '#1C1C1C', border: '1px solid #2A2A2A', borderRadius: '8px', padding: '8px 12px' }}>
+          <span style={{ fontSize: '13px', color: '#F5F5F5' }}>
+            <span style={{ fontFamily: 'IBM Plex Mono, monospace', color: '#F5A623', fontSize: '12px' }}>{maquinaCodigo}</span>
+            {' · '}{funcionario.nome.split(' ')[0]}
+          </span>
+          <button onClick={() => reiniciar(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: '#555', textDecoration: 'underline' }}>
+            Trocar
+          </button>
+        </div>
+      )}
     </div>
   )
 
@@ -210,7 +266,7 @@ export default function ApontamentoRapido() {
         <p style={{ color: '#888888', fontSize: '14px', margin: '8px 0 24px' }}>
           {ordem?.numero} · {qtdProduzida} {ordem?.produtos?.unidade_medida}
         </p>
-        <button style={s.btn} onClick={reiniciar}>Novo Apontamento</button>
+        <button style={s.btn} onClick={() => reiniciar(false)}>Novo Apontamento</button>
       </div>
     </div>
   )
