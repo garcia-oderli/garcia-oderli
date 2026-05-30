@@ -140,7 +140,7 @@ export function NovoApontamentoForm({ ordens, funcionarios, maquinas }: Props) {
 
     startTransition(async () => {
       try {
-        const { data: result, error: rpcError } = await supabase.rpc('registrar_apontamento', {
+        const { data: result, error: rpcError } = await (supabase as any).rpc('registrar_apontamento', {
           p_ordem_producao_id: ordemId,
           p_produto_id: (ordem as { produto_id: string }).produto_id,
           p_funcionario_id: funcionarioId,

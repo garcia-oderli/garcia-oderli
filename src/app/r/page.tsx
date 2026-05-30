@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { CheckCircle2, ChevronRight, AlertCircle, RotateCcw, Settings } from 'lucide-react'
+import { CheckCircle2, ChevronRight, AlertCircle, RotateCcw, Settings, QrCode } from 'lucide-react'
 import Link from 'next/link'
+import { QrScanner } from '@/components/qr-scanner'
 
 type Etapa = 'maquina' | 'matricula' | 'op' | 'qtd' | 'ok'
 
@@ -38,6 +39,8 @@ export default function ApontamentoRapido() {
   const [erro, setErro] = useState('')
   const [salvando, setSalvando] = useState(false)
   const [mostrarManual, setMostrarManual] = useState(false)
+  const [qrAtivo, setQrAtivo] = useState(false)
+  const [qrAlvo, setQrAlvo] = useState<'maquina' | 'matricula'>('maquina')
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -57,10 +60,11 @@ export default function ApontamentoRapido() {
     setEtapa('matricula')
   }
 
-  const confirmarMatricula = async () => {
+  const confirmarMatricula = async (mat?: string) => {
     setErro('')
-    if (!matricula.trim()) return
-    const { data } = await createClient().from('funcionarios').select('id, nome, matricula, setor').eq('matricula', matricula.trim()).single()
+    const valor = (mat ?? matricula).trim()
+    if (!valor) return
+    const { data } = await createClient().from('funcionarios').select('id, nome, matricula, setor').eq('matricula', valor).single()
     if (!data) { setErro('Matrícula não encontrada.'); return }
     setFuncionario(data)
 
@@ -105,7 +109,7 @@ export default function ApontamentoRapido() {
     setSalvando(true)
     setErro('')
 
-    const { data: result, error: rpcError } = await createClient().rpc('registrar_apontamento', {
+    const { data: result, error: rpcError } = await (createClient() as any).rpc('registrar_apontamento', {
       p_ordem_producao_id: ordemId,
       p_produto_id: ordem.produto_id,
       p_funcionario_id: funcionario.id,
@@ -126,6 +130,30 @@ export default function ApontamentoRapido() {
     if (!res.ok) { setErro(res.erro ?? 'Erro ao salvar.'); return }
 
     setEtapa('ok')
+  }
+
+  const abrirQr = (alvo: 'maquina' | 'matricula') => {
+    setQrAlvo(alvo)
+    setQrAtivo(true)
+  }
+
+  const handleQrResult = async (texto: string) => {
+    setQrAtivo(false)
+    setErro('')
+
+    if (qrAlvo === 'maquina') {
+      // QR da máquina contém o código ex: "MAQ-001"
+      const maq = maquinas.find(m => m.codigo === texto.trim())
+      if (maq) {
+        confirmarMaquina(maq.id, maq.codigo)
+      } else {
+        setErro(`Máquina "${texto}" não encontrada.`)
+      }
+    } else {
+      // QR do crachá contém a matrícula
+      setMatricula(texto.trim())
+      confirmarMatricula(texto.trim())
+    }
   }
 
   const reiniciar = () => {
@@ -190,11 +218,17 @@ export default function ApontamentoRapido() {
   // ETAPA: MÁQUINA
   if (etapa === 'maquina') return (
     <div style={s.page}>
+      {qrAtivo && <QrScanner onResult={handleQrResult} onClose={() => setQrAtivo(false)} />}
       {topBar}
       <div style={s.card}>
         <h2 style={s.title}>Qual máquina?</h2>
-        <p style={s.sub}>Toque na sua máquina para começar</p>
-        <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+        <p style={s.sub}>Escaneie o QR ou toque na lista</p>
+        <button style={{ ...s.btn, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '16px', marginTop: 0 }}
+          onClick={() => abrirQr('maquina')}>
+          <QrCode size={20} /> Escanear QR da Máquina
+        </button>
+        {erro && <div style={s.erro}><AlertCircle size={14} />{erro}</div>}
+        <div style={{ maxHeight: '45vh', overflowY: 'auto' }}>
           {maquinas.map(m => (
             <div key={m.id} style={s.maqCard} onClick={() => confirmarMaquina(m.id, m.codigo)}>
               <div>
@@ -212,12 +246,17 @@ export default function ApontamentoRapido() {
   // ETAPA: MATRÍCULA
   if (etapa === 'matricula') return (
     <div style={s.page}>
+      {qrAtivo && <QrScanner onResult={handleQrResult} onClose={() => setQrAtivo(false)} />}
       {topBar}
       <div style={s.card}>
         <span style={s.chip}>{maquinaCodigo}</span>
         <h2 style={s.title}>Sua matrícula</h2>
-        <p style={s.sub}>Digite seu número de matrícula</p>
-        <label style={s.label}>Matrícula</label>
+        <p style={s.sub}>Escaneie o crachá ou digite a matrícula</p>
+        <button style={{ ...s.btn, background: '#1C2A1C', border: '1px solid #4CAF50', color: '#4CAF50', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '16px' }}
+          onClick={() => abrirQr('matricula')}>
+          <QrCode size={18} /> Escanear Crachá
+        </button>
+        <label style={s.label}>Ou digite a matrícula</label>
         <input
           ref={inputRef}
           style={s.input}
@@ -230,7 +269,7 @@ export default function ApontamentoRapido() {
           autoComplete="off"
         />
         {erro && <div style={s.erro}><AlertCircle size={14} />{erro}</div>}
-        <button style={s.btn} onClick={confirmarMatricula}>Confirmar</button>
+        <button style={s.btn} onClick={() => confirmarMatricula()}>Confirmar</button>
         <button style={s.btnSecondary} onClick={() => setEtapa('maquina')}>← Voltar</button>
       </div>
     </div>
