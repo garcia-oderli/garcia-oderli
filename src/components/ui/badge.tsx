@@ -3,21 +3,21 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
 const badgeVariants = cva(
-  'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors',
+  'inline-flex items-center rounded px-2.5 py-0.5 text-xs font-bold tracking-wide uppercase transition-colors',
   {
     variants: {
       variant: {
-        default: 'border-transparent bg-blue-600 text-white',
-        secondary: 'border-transparent bg-gray-100 text-gray-800',
-        destructive: 'border-transparent bg-red-600 text-white',
-        outline: 'text-gray-700 border-gray-300',
-        manha: 'border-transparent bg-yellow-100 text-yellow-800 border-yellow-200',
-        tarde: 'border-transparent bg-blue-100 text-blue-800 border-blue-200',
-        noite: 'border-transparent bg-purple-100 text-purple-800 border-purple-200',
-        aberta: 'border-transparent bg-green-100 text-green-800',
-        em_andamento: 'border-transparent bg-blue-100 text-blue-800',
-        concluida: 'border-transparent bg-gray-100 text-gray-600',
-        cancelada: 'border-transparent bg-red-100 text-red-800',
+        default: 'bg-[#F5A623] text-[#111111]',
+        secondary: 'bg-[#222222] text-[#888888] border border-[#2A2A2A]',
+        destructive: 'bg-[#F44336] text-white',
+        outline: 'text-[#F5F5F5] border border-[#2A2A2A]',
+        manha: 'bg-yellow-900/40 text-yellow-300 border border-yellow-700/40',
+        tarde: 'bg-blue-900/40 text-blue-300 border border-blue-700/40',
+        noite: 'bg-purple-900/40 text-purple-300 border border-purple-700/40',
+        aberta: 'bg-blue-900/40 text-blue-300 border border-blue-700/40',
+        em_andamento: 'bg-orange-900/40 text-orange-300 border border-orange-700/40',
+        concluida: 'bg-green-900/40 text-green-300 border border-green-700/40',
+        cancelada: 'bg-red-900/40 text-red-300 border border-red-700/40',
       },
     },
     defaultVariants: {

@@ -39,18 +39,26 @@ export default async function NovoApontamentoPage() {
       <div className="flex items-center gap-2">
         <Link
           href="/apontamentos"
-          className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+          style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#888888', textDecoration: 'none' }}
         >
           <ChevronLeft className="h-4 w-4" />
           Apontamentos
         </Link>
-        <span className="text-gray-300">/</span>
-        <span className="text-sm text-gray-900 font-medium">Novo</span>
+        <span style={{ color: '#3A3A3A' }}>/</span>
+        <span style={{ fontSize: '13px', color: '#F5F5F5', fontWeight: 600 }}>Novo</span>
       </div>
 
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Novo Apontamento</h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <h1 style={{
+          fontFamily: 'Barlow Condensed, sans-serif',
+          fontWeight: 700,
+          fontSize: '28px',
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+          color: '#F5F5F5',
+          margin: 0,
+        }}>Novo Apontamento</h1>
+        <p style={{ fontSize: '12px', color: '#888888', marginTop: '4px' }}>
           Registre a produção realizada em uma ordem de produção.
         </p>
       </div>

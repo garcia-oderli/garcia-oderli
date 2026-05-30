@@ -9,7 +9,7 @@ import { Plus, ClipboardList } from 'lucide-react'
 import type { ApontamentoComRelacoes, TurnoEnum } from '@/types/database'
 
 export const metadata = {
-  title: 'Apontamentos — Apontamento de Produção v1',
+  title: 'Apontamentos — Apontamento de Produção',
 }
 
 const PAGE_SIZE = 20
@@ -67,7 +67,6 @@ export default async function ApontamentosPage({
 
   if (supabase) {
     try {
-      // Build query
       let query = supabase
         .from('apontamentos')
         .select(
@@ -105,7 +104,6 @@ export default async function ApontamentosPage({
     } catch {}
 
     try {
-      // Fetch filter options
       const [fr, mr] = await Promise.all([
         supabase.from('funcionarios').select('id, matricula, nome, setor').order('nome'),
         supabase.from('maquinas').select('id, codigo, descricao, setor').order('codigo'),
@@ -120,11 +118,18 @@ export default async function ApontamentosPage({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Apontamentos</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 style={{
+            fontFamily: 'Barlow Condensed, sans-serif',
+            fontWeight: 700,
+            fontSize: '28px',
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            color: '#F5F5F5',
+            margin: 0,
+          }}>Apontamentos</h1>
+          <p style={{ fontSize: '12px', color: '#888888', marginTop: '4px' }}>
             {count ?? 0} {(count ?? 0) === 1 ? 'registro encontrado' : 'registros encontrados'}
           </p>
         </div>
@@ -136,92 +141,79 @@ export default async function ApontamentosPage({
         </Button>
       </div>
 
-      {/* Filters */}
       <ApontamentosFilters
         funcionarios={funcionariosRes.data ?? []}
         maquinas={maquinasRes.data ?? []}
       />
 
-      {/* Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base font-semibold text-gray-900">
-            Lista de Apontamentos
-          </CardTitle>
+          <CardTitle>Lista de Apontamentos</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {items.length === 0 ? (
-            <div className="py-12 text-center text-gray-500">
-              <ClipboardList className="h-10 w-10 mx-auto mb-3 text-gray-300" />
+            <div className="py-12 text-center" style={{ color: '#888888' }}>
+              <ClipboardList className="h-10 w-10 mx-auto mb-3" style={{ color: '#3A3A3A' }} />
               <p className="text-sm">Nenhum apontamento encontrado com os filtros aplicados.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50">
-                    <th className="px-4 py-3 text-left font-medium text-gray-500">OP</th>
-                    <th className="px-4 py-3 text-left font-medium text-gray-500">Produto</th>
-                    <th className="px-4 py-3 text-left font-medium text-gray-500">Funcionário</th>
-                    <th className="px-4 py-3 text-left font-medium text-gray-500">Máquina</th>
-                    <th className="px-4 py-3 text-right font-medium text-gray-500">Produzido</th>
-                    <th className="px-4 py-3 text-right font-medium text-gray-500">Refugo</th>
-                    <th className="px-4 py-3 text-right font-medium text-gray-500">Retrabalho</th>
-                    <th className="px-4 py-3 text-center font-medium text-gray-500">Efic.</th>
-                    <th className="px-4 py-3 text-left font-medium text-gray-500">Turno</th>
-                    <th className="px-4 py-3 text-left font-medium text-gray-500">Início</th>
-                    <th className="px-4 py-3 text-left font-medium text-gray-500">Fim</th>
+                  <tr style={{ borderBottom: '1px solid #2A2A2A', background: '#222222' }}>
+                    {['OP', 'Produto', 'Funcionário', 'Máquina', 'Produzido', 'Refugo', 'Retrabalho', 'Efic.', 'Turno', 'Início', 'Fim'].map((h, i) => (
+                      <th key={h}
+                        className={`px-4 py-3 font-bold text-xs tracking-widest uppercase ${
+                          i >= 4 && i <= 7 ? 'text-right' : i === 7 ? 'text-center' : 'text-left'
+                        }`}
+                        style={{ color: '#888888', fontFamily: 'Barlow Condensed, sans-serif' }}>
+                        {h}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody>
                   {items.map((a) => {
                     const prod = Number(a.quantidade_produzida)
                     const ref = Number(a.quantidade_refugo)
                     const ret = Number(a.quantidade_retrabalho)
                     const total = prod + ref + ret
                     const eff = total > 0 ? ((prod / total) * 100).toFixed(0) : '—'
+                    const effColor = eff === '—' ? '#888888' : Number(eff) >= 90 ? '#4CAF50' : Number(eff) >= 70 ? '#FF9800' : '#F44336'
 
                     return (
-                      <tr key={a.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-3 font-medium text-blue-600 whitespace-nowrap">
+                      <tr key={a.id} style={{ borderBottom: '1px solid #1C1C1C' }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = '#222222')}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
+                        <td className="px-4 py-3 font-medium whitespace-nowrap" style={{ color: '#F5A623', fontFamily: 'IBM Plex Mono, monospace', fontSize: '12px' }}>
                           {a.ordens_producao?.numero}
                         </td>
-                        <td className="px-4 py-3 text-gray-700">
-                          <div className="font-medium">{a.produtos?.codigo}</div>
-                          <div className="text-xs text-gray-400 truncate max-w-[140px]">
+                        <td className="px-4 py-3" style={{ color: '#F5F5F5' }}>
+                          <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '12px' }}>{a.produtos?.codigo}</div>
+                          <div className="truncate max-w-[140px]" style={{ fontSize: '11px', color: '#888888' }}>
                             {a.produtos?.descricao}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
+                        <td className="px-4 py-3 whitespace-nowrap" style={{ color: '#F5F5F5', fontSize: '13px' }}>
                           {a.funcionarios?.nome}
                         </td>
-                        <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
+                        <td className="px-4 py-3 whitespace-nowrap" style={{ color: '#F5F5F5', fontFamily: 'IBM Plex Mono, monospace', fontSize: '12px' }}>
                           {a.maquinas?.codigo}
                         </td>
-                        <td className="px-4 py-3 text-right font-medium text-gray-900">
+                        <td className="px-4 py-3 text-right" style={{ color: '#4CAF50', fontFamily: 'IBM Plex Mono, monospace', fontSize: '13px' }}>
                           {formatNumber(prod)}
-                          <span className="text-xs text-gray-400 ml-1">
+                          <span style={{ fontSize: '10px', color: '#888888', marginLeft: '4px' }}>
                             {a.produtos?.unidade_medida}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-right text-red-600">
+                        <td className="px-4 py-3 text-right" style={{ color: '#F44336', fontFamily: 'IBM Plex Mono, monospace', fontSize: '13px' }}>
                           {ref > 0 ? formatNumber(ref) : '—'}
                         </td>
-                        <td className="px-4 py-3 text-right text-orange-600">
+                        <td className="px-4 py-3 text-right" style={{ color: '#FF9800', fontFamily: 'IBM Plex Mono, monospace', fontSize: '13px' }}>
                           {ret > 0 ? formatNumber(ret) : '—'}
                         </td>
-                        <td className="px-4 py-3 text-center">
-                          <span
-                            className={`text-xs font-semibold ${
-                              eff === '—'
-                                ? 'text-gray-400'
-                                : Number(eff) >= 90
-                                ? 'text-green-700'
-                                : Number(eff) >= 70
-                                ? 'text-yellow-700'
-                                : 'text-red-700'
-                            }`}
-                          >
+                        <td className="px-4 py-3 text-right">
+                          <span style={{ fontSize: '12px', fontWeight: 700, color: effColor, fontFamily: 'IBM Plex Mono, monospace' }}>
                             {eff}{eff !== '—' ? '%' : ''}
                           </span>
                         </td>
@@ -230,10 +222,10 @@ export default async function ApontamentosPage({
                             {turnoLabel[a.turno as TurnoEnum]}
                           </Badge>
                         </td>
-                        <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
+                        <td className="px-4 py-3 whitespace-nowrap" style={{ color: '#888888', fontFamily: 'IBM Plex Mono, monospace', fontSize: '11px' }}>
                           {formatDateTime(a.data_inicio)}
                         </td>
-                        <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
+                        <td className="px-4 py-3 whitespace-nowrap" style={{ color: '#888888', fontFamily: 'IBM Plex Mono, monospace', fontSize: '11px' }}>
                           {formatDateTime(a.data_fim)}
                         </td>
                       </tr>
@@ -246,7 +238,6 @@ export default async function ApontamentosPage({
         </CardContent>
       </Card>
 
-      {/* Pagination */}
       <Pagination currentPage={page} totalPages={totalPages} />
     </div>
   )
