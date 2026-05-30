@@ -23,7 +23,7 @@ export function Pagination({ currentPage, totalPages }: Props) {
 
   return (
     <div className="flex items-center justify-between px-2">
-      <p className="text-sm text-gray-500">
+      <p className="text-sm" style={{ color: '#888888', fontFamily: 'IBM Plex Mono, monospace', fontSize: '12px' }}>
         Página {currentPage} de {totalPages}
       </p>
       <div className="flex items-center gap-2">

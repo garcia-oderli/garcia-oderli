@@ -52,9 +52,9 @@ export function ApontamentosFilters({ funcionarios, maquinas }: Props) {
   }
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-4">
+    <div className="rounded-lg p-4 space-y-4" style={{ background: '#1C1C1C', border: '1px solid #2A2A2A' }}>
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-gray-700">Filtros</h2>
+        <h2 style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '13px', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#888888' }}>Filtros</h2>
         {hasFilters && (
           <Button variant="ghost" size="sm" onClick={clearFilters} className="text-xs h-7">
             <X className="h-3 w-3" />

@@ -40,6 +40,32 @@ const turnoOptions: { value: TurnoEnum; label: string }[] = [
   { value: 'NOITE', label: 'Noite (22h - 06h)' },
 ]
 
+const sectionTitle = (text: string) => (
+  <h3 style={{
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontWeight: 700,
+    fontSize: '13px',
+    letterSpacing: '0.1em',
+    textTransform: 'uppercase',
+    color: '#F5A623',
+    margin: 0,
+  }}>{text}</h3>
+)
+
+const fieldLabel = (text: string, htmlFor?: string, style?: React.CSSProperties) => (
+  <label htmlFor={htmlFor} style={{
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontWeight: 600,
+    fontSize: '11px',
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    color: '#888888',
+    display: 'block',
+    marginBottom: '6px',
+    ...style,
+  }}>{text}</label>
+)
+
 export function NovoApontamentoForm({ ordens, funcionarios, maquinas }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -84,7 +110,6 @@ export function NovoApontamentoForm({ ordens, funcionarios, maquinas }: Props) {
 
     const supabase = createClient()
 
-    // Fetch the ordem to get produto_id
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: ordem } = await (supabase.from('ordens_producao') as any)
       .select('produto_id')
@@ -122,10 +147,12 @@ export function NovoApontamentoForm({ ordens, funcionarios, maquinas }: Props) {
 
   if (success) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 gap-4">
-        <CheckCircle2 className="h-16 w-16 text-green-500" />
-        <h2 className="text-xl font-semibold text-gray-900">Apontamento registrado com sucesso!</h2>
-        <p className="text-gray-500">Redirecionando para a lista...</p>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '64px 0', gap: '16px' }}>
+        <CheckCircle2 style={{ width: '64px', height: '64px', color: '#4CAF50' }} />
+        <h2 style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '22px', letterSpacing: '0.05em', color: '#F5F5F5', textTransform: 'uppercase', margin: 0 }}>
+          Apontamento registrado com sucesso!
+        </h2>
+        <p style={{ color: '#888888', fontSize: '14px' }}>Redirecionando para a lista...</p>
       </div>
     )
   }
@@ -133,20 +160,27 @@ export function NovoApontamentoForm({ ordens, funcionarios, maquinas }: Props) {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
-        <div className="flex items-start gap-3 rounded-md border border-red-200 bg-red-50 p-4 text-red-700">
-          <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
-          <p className="text-sm">{error}</p>
+        <div style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '12px',
+          borderRadius: '6px',
+          border: '1px solid #F44336',
+          background: 'rgba(244, 67, 54, 0.1)',
+          padding: '12px 16px',
+          color: '#F44336',
+        }}>
+          <AlertCircle style={{ width: '18px', height: '18px', flexShrink: 0, marginTop: '2px' }} />
+          <p style={{ fontSize: '13px', margin: 0 }}>{error}</p>
         </div>
       )}
 
       {/* Ordem de Produção */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Ordem de Produção</CardTitle>
-        </CardHeader>
+        <CardHeader>{sectionTitle('Ordem de Produção')}</CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="ordem">Ordem de Produção *</Label>
+          <div>
+            {fieldLabel('Ordem de Produção *', 'ordem')}
             <Select value={ordemId} onValueChange={setOrdemId}>
               <SelectTrigger id="ordem">
                 <SelectValue placeholder="Selecione a OP..." />
@@ -162,28 +196,32 @@ export function NovoApontamentoForm({ ordens, funcionarios, maquinas }: Props) {
           </div>
 
           {selectedOrdem && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 rounded-md bg-blue-50 border border-blue-100 p-4">
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: '16px',
+              borderRadius: '6px',
+              background: '#222222',
+              border: '1px solid #2A2A2A',
+              padding: '16px',
+            }}>
               <div>
-                <p className="text-xs font-medium text-blue-700 uppercase tracking-wide">Produto</p>
-                <p className="text-sm text-blue-900 font-semibold mt-1">
+                <p style={{ fontSize: '10px', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#F5A623', margin: '0 0 4px 0' }}>Produto</p>
+                <p style={{ fontSize: '13px', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 600, color: '#F5F5F5', margin: '0 0 2px 0' }}>
                   {selectedOrdem.produtos?.codigo}
                 </p>
-                <p className="text-xs text-blue-700">{selectedOrdem.produtos?.descricao}</p>
+                <p style={{ fontSize: '11px', color: '#888888', margin: 0 }}>{selectedOrdem.produtos?.descricao}</p>
               </div>
               <div>
-                <p className="text-xs font-medium text-blue-700 uppercase tracking-wide">
-                  Qtd. Planejada
-                </p>
-                <p className="text-sm text-blue-900 font-semibold mt-1">
+                <p style={{ fontSize: '10px', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#F5A623', margin: '0 0 4px 0' }}>Qtd. Planejada</p>
+                <p style={{ fontSize: '13px', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 600, color: '#F5F5F5', margin: 0 }}>
                   {Number(selectedOrdem.quantidade_planejada).toLocaleString('pt-BR')}{' '}
                   {selectedOrdem.produtos?.unidade_medida}
                 </p>
               </div>
               <div>
-                <p className="text-xs font-medium text-blue-700 uppercase tracking-wide">
-                  Previsão
-                </p>
-                <p className="text-sm text-blue-900 font-semibold mt-1">
+                <p style={{ fontSize: '10px', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#F5A623', margin: '0 0 4px 0' }}>Previsão</p>
+                <p style={{ fontSize: '13px', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 600, color: '#F5F5F5', margin: 0 }}>
                   {new Date(selectedOrdem.data_prevista + 'T00:00:00').toLocaleDateString('pt-BR')}
                 </p>
               </div>
@@ -194,12 +232,10 @@ export function NovoApontamentoForm({ ordens, funcionarios, maquinas }: Props) {
 
       {/* Operador e Máquina */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Operador e Máquina</CardTitle>
-        </CardHeader>
+        <CardHeader>{sectionTitle('Operador e Máquina')}</CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="func-search">Buscar Funcionário</Label>
+          <div>
+            {fieldLabel('Buscar Funcionário', 'func-search')}
             <Input
               id="func-search"
               placeholder="Digite nome ou matrícula..."
@@ -207,8 +243,8 @@ export function NovoApontamentoForm({ ordens, funcionarios, maquinas }: Props) {
               onChange={(e) => setFuncSearch(e.target.value)}
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="funcionario">Funcionário *</Label>
+          <div>
+            {fieldLabel('Funcionário *', 'funcionario')}
             <Select value={funcionarioId} onValueChange={setFuncionarioId}>
               <SelectTrigger id="funcionario">
                 <SelectValue placeholder="Selecione o funcionário..." />
@@ -220,16 +256,16 @@ export function NovoApontamentoForm({ ordens, funcionarios, maquinas }: Props) {
                   </SelectItem>
                 ))}
                 {filteredFuncionarios.length === 0 && (
-                  <div className="py-2 px-3 text-sm text-gray-400">Nenhum resultado</div>
+                  <div style={{ padding: '8px 12px', fontSize: '13px', color: '#888888' }}>Nenhum resultado</div>
                 )}
               </SelectContent>
             </Select>
           </div>
 
-          <Separator />
+          <Separator style={{ background: '#2A2A2A' }} />
 
-          <div className="space-y-2">
-            <Label htmlFor="maquina">Máquina / Centro de Trabalho *</Label>
+          <div>
+            {fieldLabel('Máquina / Centro de Trabalho *', 'maquina')}
             <Select value={maquinaId} onValueChange={setMaquinaId}>
               <SelectTrigger id="maquina">
                 <SelectValue placeholder="Selecione a máquina..." />
@@ -248,20 +284,14 @@ export function NovoApontamentoForm({ ordens, funcionarios, maquinas }: Props) {
 
       {/* Quantidades */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Quantidades Produzidas</CardTitle>
-        </CardHeader>
+        <CardHeader>{sectionTitle('Quantidades Produzidas')}</CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="qtd-produzida">
-                Quantidade Produzida *
-                {selectedOrdem && (
-                  <span className="ml-1 text-xs text-gray-400">
-                    ({selectedOrdem.produtos?.unidade_medida})
-                  </span>
-                )}
-              </Label>
+            <div>
+              {fieldLabel(
+                selectedOrdem ? `Quantidade Produzida * (${selectedOrdem.produtos?.unidade_medida})` : 'Quantidade Produzida *',
+                'qtd-produzida'
+              )}
               <Input
                 id="qtd-produzida"
                 type="number"
@@ -270,13 +300,11 @@ export function NovoApontamentoForm({ ordens, funcionarios, maquinas }: Props) {
                 placeholder="0"
                 value={qtdProduzida}
                 onChange={(e) => setQtdProduzida(e.target.value)}
-                className="font-medium"
+                style={{ fontFamily: 'IBM Plex Mono, monospace' }}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="qtd-refugo" className="text-red-700">
-                Refugo (Scrap)
-              </Label>
+            <div>
+              {fieldLabel('Refugo (Scrap)', 'qtd-refugo', { color: '#F44336' })}
               <Input
                 id="qtd-refugo"
                 type="number"
@@ -285,13 +313,11 @@ export function NovoApontamentoForm({ ordens, funcionarios, maquinas }: Props) {
                 placeholder="0"
                 value={qtdRefugo}
                 onChange={(e) => setQtdRefugo(e.target.value)}
-                className="border-red-200 focus-visible:ring-red-400"
+                style={{ fontFamily: 'IBM Plex Mono, monospace', borderColor: 'rgba(244,67,54,0.4)' }}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="qtd-retrabalho" className="text-orange-700">
-                Retrabalho
-              </Label>
+            <div>
+              {fieldLabel('Retrabalho', 'qtd-retrabalho', { color: '#FF9800' })}
               <Input
                 id="qtd-retrabalho"
                 type="number"
@@ -300,13 +326,13 @@ export function NovoApontamentoForm({ ordens, funcionarios, maquinas }: Props) {
                 placeholder="0"
                 value={qtdRetrabalho}
                 onChange={(e) => setQtdRetrabalho(e.target.value)}
-                className="border-orange-200 focus-visible:ring-orange-400"
+                style={{ fontFamily: 'IBM Plex Mono, monospace', borderColor: 'rgba(255,152,0,0.4)' }}
               />
             </div>
           </div>
 
           {qtdProduzida && Number(qtdProduzida) >= 0 && (
-            <div className="mt-4 rounded-md bg-gray-50 border border-gray-200 p-3">
+            <div style={{ marginTop: '16px', borderRadius: '6px', background: '#222222', border: '1px solid #2A2A2A', padding: '12px 16px' }}>
               {(() => {
                 const prod = Number(qtdProduzida) || 0
                 const ref = Number(qtdRefugo) || 0
@@ -314,13 +340,12 @@ export function NovoApontamentoForm({ ordens, funcionarios, maquinas }: Props) {
                 const total = prod + ref + ret
                 const eff = total > 0 ? ((prod / total) * 100).toFixed(1) : '—'
                 return (
-                  <p className="text-sm text-gray-600">
+                  <p style={{ fontSize: '13px', color: '#888888', margin: 0 }}>
                     Eficiência estimada:{' '}
-                    <span className="font-semibold text-indigo-700">
-                      {eff}
-                      {eff !== '—' ? '%' : ''}
+                    <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700, color: '#F5A623' }}>
+                      {eff}{eff !== '—' ? '%' : ''}
                     </span>{' '}
-                    ({prod.toLocaleString('pt-BR')} boas / {total.toLocaleString('pt-BR')} total)
+                    <span style={{ color: '#3A3A3A' }}>({prod.toLocaleString('pt-BR')} boas / {total.toLocaleString('pt-BR')} total)</span>
                   </p>
                 )
               })()}
@@ -331,31 +356,31 @@ export function NovoApontamentoForm({ ordens, funcionarios, maquinas }: Props) {
 
       {/* Período e Turno */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Período e Turno</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+        <CardHeader>{sectionTitle('Período e Turno')}</CardHeader>
+        <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="data-inicio">Data/Hora Início *</Label>
+            <div>
+              {fieldLabel('Data/Hora Início *', 'data-inicio')}
               <Input
                 id="data-inicio"
                 type="datetime-local"
                 value={dataInicio}
                 onChange={(e) => setDataInicio(e.target.value)}
+                style={{ colorScheme: 'dark' }}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="data-fim">Data/Hora Fim *</Label>
+            <div>
+              {fieldLabel('Data/Hora Fim *', 'data-fim')}
               <Input
                 id="data-fim"
                 type="datetime-local"
                 value={dataFim}
                 onChange={(e) => setDataFim(e.target.value)}
+                style={{ colorScheme: 'dark' }}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="turno">Turno *</Label>
+            <div>
+              {fieldLabel('Turno *', 'turno')}
               <Select value={turno} onValueChange={(v) => setTurno(v as TurnoEnum)}>
                 <SelectTrigger id="turno">
                   <SelectValue placeholder="Selecione o turno..." />
@@ -375,12 +400,10 @@ export function NovoApontamentoForm({ ordens, funcionarios, maquinas }: Props) {
 
       {/* Observações */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Observações</CardTitle>
-        </CardHeader>
+        <CardHeader>{sectionTitle('Observações')}</CardHeader>
         <CardContent>
-          <div className="space-y-2">
-            <Label htmlFor="observacoes">Observações (opcional)</Label>
+          <div>
+            {fieldLabel('Observações (opcional)', 'observacoes')}
             <Textarea
               id="observacoes"
               placeholder="Descreva ocorrências, paradas, problemas encontrados..."
