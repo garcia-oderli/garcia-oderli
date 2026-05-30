@@ -8,52 +8,42 @@ interface Props {
   onClose: () => void
 }
 
+const QR_DIV_ID = 'qr-reader-fixed'
+
 export function QrScanner({ onResult, onClose }: Props) {
-  const containerRef = useRef<HTMLDivElement>(null)
   const scannerRef = useRef<any>(null)
   const [erro, setErro] = useState('')
-  const [pronto, setPronto] = useState(false)
+  const resultadoRef = useRef(false)
 
   useEffect(() => {
-    const divId = 'qr-scan-' + Math.random().toString(36).slice(2)
-    if (!containerRef.current) return
+    // Pequeno delay para garantir que o div está no DOM
+    const timer = setTimeout(() => {
+      import('html5-qrcode').then(({ Html5Qrcode }) => {
+        const el = document.getElementById(QR_DIV_ID)
+        if (!el) { setErro('Erro interno: div não encontrado.'); return }
 
-    // Cria o div dentro do container
-    const div = document.createElement('div')
-    div.id = divId
-    containerRef.current.appendChild(div)
-    setPronto(true)
-
-    let stopped = false
-
-    import('html5-qrcode').then(({ Html5Qrcode }) => {
-      if (stopped) return
-      try {
-        const scanner = new Html5Qrcode(divId)
+        const scanner = new Html5Qrcode(QR_DIV_ID)
         scannerRef.current = scanner
 
         scanner.start(
           { facingMode: 'environment' },
-          { fps: 10, qrbox: { width: 220, height: 220 } },
+          { fps: 10, qrbox: 220 },
           (text: string) => {
-            stopped = true
-            scanner.stop().catch(() => {}).finally(() => {
-              onResult(text)
-            })
+            if (resultadoRef.current) return
+            resultadoRef.current = true
+            scanner.stop().catch(() => {}).finally(() => onResult(text))
           },
           () => {}
-        ).catch(() => {
-          if (!stopped) setErro('Câmera não disponível. Verifique as permissões.')
+        ).catch((err: any) => {
+          console.error('QR start error:', err)
+          setErro('Não foi possível acessar a câmera. Verifique as permissões do navegador.')
         })
-      } catch {
-        setErro('Erro ao iniciar o leitor de QR.')
-      }
-    }).catch(() => {
-      setErro('Erro ao carregar o leitor.')
-    })
+      }).catch(() => setErro('Erro ao carregar o leitor de QR.'))
+    }, 300)
 
     return () => {
-      stopped = true
+      clearTimeout(timer)
+      resultadoRef.current = true
       scannerRef.current?.stop().catch(() => {})
     }
   }, [])
@@ -76,12 +66,11 @@ export function QrScanner({ onResult, onClose }: Props) {
           </button>
         </div>
 
+        {/* Div fixo que o scanner vai usar */}
         <div
-          ref={containerRef}
-          style={{ borderRadius: '12px', overflow: 'hidden', background: '#000', minHeight: '260px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-        >
-          {!pronto && <span style={{ color: '#888', fontSize: '13px' }}>Iniciando câmera...</span>}
-        </div>
+          id={QR_DIV_ID}
+          style={{ borderRadius: '12px', overflow: 'hidden', background: '#111', width: '100%' }}
+        />
 
         {erro ? (
           <div style={{ marginTop: '16px', background: 'rgba(244,67,54,0.1)', border: '1px solid rgba(244,67,54,0.4)', borderRadius: '8px', padding: '12px', color: '#F44336', fontSize: '13px', textAlign: 'center' }}>
