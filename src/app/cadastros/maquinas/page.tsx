@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Settings, Plus, Pencil, Trash2, Check, X } from 'lucide-react'
+import { Settings, Plus, Pencil, Trash2, Check, X, QrCode } from 'lucide-react'
+import Link from 'next/link'
 
 export default function MaquinasPage() {
   const [maquinas, setMaquinas] = useState<any[]>([])
@@ -146,8 +147,12 @@ export default function MaquinasPage() {
 
       {/* List */}
       <div className="rounded-lg overflow-hidden" style={{ background: '#1C1C1C', border: '1px solid #2A2A2A' }}>
-        <div className="px-4 py-3" style={{ borderBottom: '1px solid #2A2A2A' }}>
+        <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid #2A2A2A' }}>
           <h2 className="text-base font-semibold" style={{ fontFamily: 'Barlow Condensed, sans-serif', color: '#F5F5F5' }}>LISTA DE MÁQUINAS</h2>
+          <Link href="/cadastros/maquinas/qr"
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#F5A623', textDecoration: 'none', border: '1px solid #F5A62366', borderRadius: '4px', padding: '4px 10px' }}>
+            <QrCode size={13} /> Imprimir QR Codes
+          </Link>
         </div>
         {maquinas.length === 0 ? (
           <div className="py-12 text-center" style={{ color: '#888888' }}>

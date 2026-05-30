@@ -26,6 +26,7 @@
     "react": "19.2.4",
     "react-chartjs-2": "^5.3.1",
     "react-dom": "19.2.4",
+    "react-qr-code": "^2.0.21",
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
