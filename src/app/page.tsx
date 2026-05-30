@@ -330,58 +330,22 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs">Apontamentos Hoje</CardTitle>
-            <ClipboardList className="h-4 w-4" style={{ color: '#F5A623' }} />
-          </CardHeader>
-          <CardContent>
-            <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '32px', fontWeight: 600, color: '#F5A623' }}>
-              {filteredApontamentos.length}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+        {[
+          { label: 'Apontamentos', value: filteredApontamentos.length, sub: 'registros no dia', color: '#F5A623', Icon: ClipboardList },
+          { label: 'Total Produzido', value: formatNumber(totalProduzido), sub: 'unidades produzidas', color: '#4CAF50', Icon: Package },
+          { label: 'Total Refugo', value: formatNumber(totalRefugo), sub: 'unidades refugadas', color: '#F44336', Icon: AlertTriangle },
+          { label: 'Eficiência', value: `${eficiencia}${eficiencia !== '—' ? '%' : ''}`, sub: 'prod / (prod+ref+ret)', color: '#F5A623', Icon: TrendingUp },
+        ].map(({ label, value, sub, color, Icon }) => (
+          <div key={label} style={{ background: '#1C1C1C', border: '1px solid #2A2A2A', borderRadius: '8px', padding: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+              <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#888888' }}>{label}</span>
+              <Icon size={16} style={{ color, flexShrink: 0 }} />
             </div>
-            <p style={{ fontSize: '11px', color: '#888888', marginTop: '4px' }}>registros no dia</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs">Total Produzido</CardTitle>
-            <Package className="h-4 w-4" style={{ color: '#4CAF50' }} />
-          </CardHeader>
-          <CardContent>
-            <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '32px', fontWeight: 600, color: '#4CAF50' }}>
-              {formatNumber(totalProduzido)}
-            </div>
-            <p style={{ fontSize: '11px', color: '#888888', marginTop: '4px' }}>unidades produzidas</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs">Total Refugo</CardTitle>
-            <AlertTriangle className="h-4 w-4" style={{ color: '#F44336' }} />
-          </CardHeader>
-          <CardContent>
-            <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '32px', fontWeight: 600, color: '#F44336' }}>
-              {formatNumber(totalRefugo)}
-            </div>
-            <p style={{ fontSize: '11px', color: '#888888', marginTop: '4px' }}>unidades refugadas</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs">Eficiência</CardTitle>
-            <TrendingUp className="h-4 w-4" style={{ color: '#F5A623' }} />
-          </CardHeader>
-          <CardContent>
-            <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '32px', fontWeight: 600, color: '#F5A623' }}>
-              {eficiencia}{eficiencia !== '—' ? '%' : ''}
-            </div>
-            <p style={{ fontSize: '11px', color: '#888888', marginTop: '4px' }}>prod / (prod + refugo + retrab)</p>
-          </CardContent>
-        </Card>
+            <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '28px', fontWeight: 700, color, lineHeight: 1 }}>{value}</div>
+            <div style={{ fontSize: '11px', color: '#555', marginTop: '6px' }}>{sub}</div>
+          </div>
+        ))}
       </div>
 
       {/* Turno filter */}
