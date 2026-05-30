@@ -8,86 +8,122 @@ interface Props {
   onClose: () => void
 }
 
-const QR_DIV_ID = 'qr-reader-fixed'
-
 export function QrScanner({ onResult, onClose }: Props) {
-  const scannerRef = useRef<any>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const rafRef = useRef<number>(0)
   const [erro, setErro] = useState('')
-  const resultadoRef = useRef(false)
+  const doneRef = useRef(false)
 
   useEffect(() => {
-    // Pequeno delay para garantir que o div está no DOM
-    const timer = setTimeout(() => {
-      import('html5-qrcode').then(({ Html5Qrcode }) => {
-        const el = document.getElementById(QR_DIV_ID)
-        if (!el) { setErro('Erro interno: div não encontrado.'); return }
+    let detector: any = null
 
-        const scanner = new Html5Qrcode(QR_DIV_ID)
-        scannerRef.current = scanner
+    async function start() {
+      try {
+        // Verifica suporte ao BarcodeDetector (Chrome Android 83+)
+        if (!('BarcodeDetector' in window)) {
+          setErro('Leitor de QR não suportado neste navegador. Use o Chrome atualizado.')
+          return
+        }
 
-        scanner.start(
-          { facingMode: 'environment' },
-          { fps: 10, qrbox: 220 },
-          (text: string) => {
-            if (resultadoRef.current) return
-            resultadoRef.current = true
-            scanner.stop().catch(() => {}).finally(() => onResult(text))
-          },
-          () => {}
-        ).catch((err: any) => {
-          console.error('QR start error:', err)
-          setErro('Não foi possível acessar a câmera. Verifique as permissões do navegador.')
+        // @ts-ignore
+        detector = new window.BarcodeDetector({ formats: ['qr_code'] })
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
         })
-      }).catch(() => setErro('Erro ao carregar o leitor de QR.'))
-    }, 300)
 
-    return () => {
-      clearTimeout(timer)
-      resultadoRef.current = true
-      scannerRef.current?.stop().catch(() => {})
+        streamRef.current = stream
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream
+          await videoRef.current.play()
+          scanLoop()
+        }
+      } catch (err: any) {
+        if (err.name === 'NotAllowedError') {
+          setErro('Permissão de câmera negada. Toque no ícone de câmera na barra do navegador para permitir.')
+        } else {
+          setErro('Câmera não disponível: ' + (err.message ?? err))
+        }
+      }
     }
+
+    function scanLoop() {
+      if (doneRef.current || !videoRef.current || !detector) return
+      if (videoRef.current.readyState >= 2) {
+        detector.detect(videoRef.current).then((results: any[]) => {
+          if (results.length > 0 && !doneRef.current) {
+            doneRef.current = true
+            stop()
+            onResult(results[0].rawValue)
+          }
+        }).catch(() => {})
+      }
+      rafRef.current = requestAnimationFrame(scanLoop)
+    }
+
+    function stop() {
+      cancelAnimationFrame(rafRef.current)
+      streamRef.current?.getTracks().forEach(t => t.stop())
+    }
+
+    start()
+    return () => { doneRef.current = true; stop() }
   }, [])
 
   return (
     <div style={{
-      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-      width: '100%', height: '100%',
-      background: 'rgba(0,0,0,0.97)',
-      display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center',
-      zIndex: 99999, padding: '24px',
-      boxSizing: 'border-box',
+      position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+      background: '#000', display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center', zIndex: 99999,
     }}>
-      <div style={{ width: '100%', maxWidth: '360px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '18px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#F5A623' }}>
-            Escanear QR Code
-          </span>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#F5F5F5', padding: '4px' }}>
-            <X size={24} />
-          </button>
-        </div>
+      {/* Botão fechar */}
+      <button onClick={onClose} style={{
+        position: 'absolute', top: '16px', right: '16px',
+        background: 'rgba(0,0,0,0.6)', border: '1px solid #444',
+        borderRadius: '50%', width: '40px', height: '40px',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        cursor: 'pointer', color: '#fff', zIndex: 1,
+      }}>
+        <X size={20} />
+      </button>
 
-        {/* Div fixo que o scanner vai usar */}
-        <div
-          id={QR_DIV_ID}
-          style={{ borderRadius: '12px', overflow: 'hidden', background: '#111', width: '100%' }}
-        />
-
-        {erro ? (
-          <div style={{ marginTop: '16px', background: 'rgba(244,67,54,0.1)', border: '1px solid rgba(244,67,54,0.4)', borderRadius: '8px', padding: '12px', color: '#F44336', fontSize: '13px', textAlign: 'center' }}>
+      {erro ? (
+        <div style={{ padding: '24px', maxWidth: '320px', textAlign: 'center' }}>
+          <div style={{ background: 'rgba(244,67,54,0.15)', border: '1px solid rgba(244,67,54,0.5)', borderRadius: '12px', padding: '20px', color: '#F44336', fontSize: '14px', lineHeight: '1.5', marginBottom: '16px' }}>
             {erro}
           </div>
-        ) : (
-          <p style={{ color: '#555', fontSize: '12px', marginTop: '12px', textAlign: 'center' }}>
-            Aponte a câmera para o QR Code da máquina ou crachá
-          </p>
-        )}
-
-        <button onClick={onClose} style={{ width: '100%', marginTop: '12px', background: '#2A2A2A', border: 'none', borderRadius: '8px', padding: '12px', color: '#F5F5F5', fontFamily: 'Barlow Condensed, sans-serif', fontSize: '15px', fontWeight: 700, cursor: 'pointer' }}>
-          Cancelar
-        </button>
-      </div>
+          <button onClick={onClose} style={{ background: '#2A2A2A', border: 'none', borderRadius: '8px', padding: '12px 24px', color: '#F5F5F5', fontFamily: 'Barlow Condensed, sans-serif', fontSize: '15px', fontWeight: 700, cursor: 'pointer' }}>
+            Voltar
+          </button>
+        </div>
+      ) : (
+        <>
+          <video
+            ref={videoRef}
+            playsInline
+            muted
+            style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0 }}
+          />
+          {/* Overlay com mira */}
+          <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+            <div style={{ width: '240px', height: '240px', position: 'relative' }}>
+              {/* Cantos da mira */}
+              {[
+                { top: 0, left: 0, borderTop: '3px solid #F5A623', borderLeft: '3px solid #F5A623' },
+                { top: 0, right: 0, borderTop: '3px solid #F5A623', borderRight: '3px solid #F5A623' },
+                { bottom: 0, left: 0, borderBottom: '3px solid #F5A623', borderLeft: '3px solid #F5A623' },
+                { bottom: 0, right: 0, borderBottom: '3px solid #F5A623', borderRight: '3px solid #F5A623' },
+              ].map((style, i) => (
+                <div key={i} style={{ position: 'absolute', width: '24px', height: '24px', ...style }} />
+              ))}
+            </div>
+            <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '14px', fontWeight: 600, letterSpacing: '0.08em', color: 'rgba(255,255,255,0.7)', textAlign: 'center' }}>
+              APONTE PARA O QR CODE
+            </span>
+          </div>
+        </>
+      )}
     </div>
   )
 }
