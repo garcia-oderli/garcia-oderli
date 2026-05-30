@@ -1,11 +1,9 @@
-import { createClient } from '@/lib/supabase/server'
-import { createOrdem } from '@/lib/actions/cadastros'
+'use client'
+
+import { useEffect, useState, useRef } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import { ClipboardList, Plus } from 'lucide-react'
 import type { StatusOrdem } from '@/types/database'
-
-export const metadata = {
-  title: 'Ordens de Produção — Apontamento de Produção',
-}
 
 const statusColors: Record<StatusOrdem, string> = {
   ABERTA: '#4CAF50',
@@ -25,23 +23,60 @@ function formatDate(dt: string) {
   return new Date(dt).toLocaleDateString('pt-BR')
 }
 
-export default async function OrdensPage() {
-  const supabase = await createClient()
-  let ordens: any[] = []
-  let produtos: any[] = []
+export default function OrdensPage() {
+  const [ordens, setOrdens] = useState<any[]>([])
+  const [produtos, setProdutos] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const formRef = useRef<HTMLFormElement>(null)
 
-  try {
-    const [ordensRes, produtosRes] = await Promise.all([
-      (supabase.from('ordens_producao') as any)
+  const fetchData = () => {
+    const supabase = createClient()
+    Promise.all([
+      supabase
+        .from('ordens_producao')
         .select('id, numero, quantidade_planejada, data_prevista, status, created_at, produtos(codigo, descricao)')
         .order('numero'),
-      (supabase.from('produtos') as any)
-        .select('id, codigo, descricao')
-        .order('codigo'),
-    ])
-    ordens = ordensRes.data ?? []
-    produtos = produtosRes.data ?? []
-  } catch {}
+      supabase.from('produtos').select('id, codigo, descricao').order('codigo'),
+    ]).then(([ordensRes, produtosRes]) => {
+      setOrdens(ordensRes.data ?? [])
+      setProdutos(produtosRes.data ?? [])
+      setLoading(false)
+    })
+  }
+
+  useEffect(() => {
+    fetchData()
+  }, [])
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setError(null)
+    setSuccess(false)
+    setSubmitting(true)
+    const formData = new FormData(e.currentTarget)
+    const supabase = createClient()
+    const { error: dbError } = await (supabase.from('ordens_producao') as any).insert({
+      numero: formData.get('numero') as string,
+      produto_id: formData.get('produto_id') as string,
+      quantidade_planejada: Number(formData.get('quantidade_planejada')),
+      data_prevista: formData.get('data_prevista') as string,
+      status: (formData.get('status') as string) || 'ABERTA',
+    })
+    if (dbError) {
+      setError(dbError.message)
+    } else {
+      setSuccess(true)
+      formRef.current?.reset()
+      fetchData()
+      setTimeout(() => setSuccess(false), 3000)
+    }
+    setSubmitting(false)
+  }
+
+  if (loading) return <div style={{ color: '#888', padding: '40px', textAlign: 'center' }}>Carregando...</div>
 
   return (
     <div className="space-y-6">
@@ -61,6 +96,17 @@ export default async function OrdensPage() {
         <ClipboardList style={{ color: '#F5A623' }} className="h-8 w-8" />
       </div>
 
+      {error && (
+        <div className="rounded px-4 py-3 text-sm" style={{ background: '#2a1212', border: '1px solid #F44336', color: '#F44336' }}>
+          Erro: {error}
+        </div>
+      )}
+      {success && (
+        <div className="rounded px-4 py-3 text-sm" style={{ background: '#122a12', border: '1px solid #4CAF50', color: '#4CAF50' }}>
+          Ordem salva com sucesso!
+        </div>
+      )}
+
       {/* Create Form */}
       <div
         className="rounded-lg p-6"
@@ -73,7 +119,7 @@ export default async function OrdensPage() {
           <Plus className="h-5 w-5" />
           NOVA ORDEM DE PRODUÇÃO
         </h2>
-        <form action={createOrdem} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <form ref={formRef} onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium uppercase tracking-wide" style={{ color: '#888888' }}>
               Número *
@@ -146,10 +192,11 @@ export default async function OrdensPage() {
           <div className="flex items-end">
             <button
               type="submit"
-              className="w-full rounded px-5 py-2 text-sm font-semibold transition-opacity hover:opacity-80"
+              disabled={submitting}
+              className="w-full rounded px-5 py-2 text-sm font-semibold transition-opacity hover:opacity-80 disabled:opacity-50"
               style={{ background: '#F5A623', color: '#111111' }}
             >
-              Salvar Ordem
+              {submitting ? 'Salvando...' : 'Salvar Ordem'}
             </button>
           </div>
         </form>

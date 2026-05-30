@@ -1,5 +1,8 @@
+'use client'
+
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -39,31 +42,25 @@ function formatDateTime(dt: string) {
   })
 }
 
-export default async function DashboardPage() {
-  const supabase = await createClient()
+export default function DashboardPage() {
+  const [todayApontamentos, setTodayApontamentos] = useState<{ quantidade_produzida: number; quantidade_refugo: number; quantidade_retrabalho: number }[]>([])
+  const [recentApontamentos, setRecentApontamentos] = useState<ApontamentoComRelacoes[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const todayEnd = new Date()
-  todayEnd.setHours(23, 59, 59, 999)
+  useEffect(() => {
+    const supabase = createClient()
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const todayEnd = new Date()
+    todayEnd.setHours(23, 59, 59, 999)
 
-  type StatsRow = { quantidade_produzida: number; quantidade_refugo: number; quantidade_retrabalho: number }
-
-  let todayApontamentos: StatsRow[] = []
-  let recentApontamentos: any[] = []
-
-  if (supabase) {
-    try {
-      const { data: todayApontamentosRaw } = await supabase
+    Promise.all([
+      supabase
         .from('apontamentos')
         .select('quantidade_produzida, quantidade_refugo, quantidade_retrabalho')
         .gte('created_at', today.toISOString())
-        .lte('created_at', todayEnd.toISOString())
-      todayApontamentos = (todayApontamentosRaw ?? []) as unknown as StatsRow[]
-    } catch {}
-
-    try {
-      const { data } = await supabase
+        .lte('created_at', todayEnd.toISOString()),
+      supabase
         .from('apontamentos')
         .select(
           `id, quantidade_produzida, quantidade_refugo, quantidade_retrabalho, data_inicio, turno, created_at,
@@ -73,10 +70,15 @@ export default async function DashboardPage() {
           maquinas(codigo, descricao)`
         )
         .order('created_at', { ascending: false })
-        .limit(10)
-      recentApontamentos = data ?? []
-    } catch {}
-  }
+        .limit(10),
+    ]).then(([todayRes, recentRes]) => {
+      setTodayApontamentos((todayRes.data ?? []) as any)
+      setRecentApontamentos((recentRes.data ?? []) as any)
+      setLoading(false)
+    })
+  }, [])
+
+  if (loading) return <div style={{ color: '#888', padding: '40px', textAlign: 'center' }}>Carregando...</div>
 
   const totalProduzido = todayApontamentos.reduce(
     (sum, a) => sum + Number(a.quantidade_produzida),
@@ -93,7 +95,7 @@ export default async function DashboardPage() {
   const totalBruto = totalProduzido + totalRefugo + totalRetrabalho
   const eficiencia = totalBruto > 0 ? ((totalProduzido / totalBruto) * 100).toFixed(1) : '—'
 
-  const items = recentApontamentos as unknown as ApontamentoComRelacoes[]
+  const items = recentApontamentos
 
   return (
     <div className="space-y-6">

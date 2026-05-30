@@ -1,22 +1,57 @@
-import { createClient } from '@/lib/supabase/server'
-import { createProduto } from '@/lib/actions/cadastros'
+'use client'
+
+import { useEffect, useState, useRef } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import { Package, Plus } from 'lucide-react'
 
-export const metadata = {
-  title: 'Produtos — Apontamento de Produção',
-}
+export default function ProdutosPage() {
+  const [produtos, setProdutos] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const formRef = useRef<HTMLFormElement>(null)
 
-export default async function ProdutosPage({ searchParams }: { searchParams: Promise<{ erro?: string; ok?: string }> }) {
-  const { erro, ok } = await searchParams
-  const supabase = await createClient()
-  let produtos: any[] = []
-
-  try {
-    const { data } = await (supabase.from('produtos') as any)
+  const fetchProdutos = () => {
+    const supabase = createClient()
+    supabase
+      .from('produtos')
       .select('id, codigo, descricao, unidade_medida, created_at')
       .order('codigo')
-    produtos = data ?? []
-  } catch {}
+      .then(({ data }) => {
+        setProdutos(data ?? [])
+        setLoading(false)
+      })
+  }
+
+  useEffect(() => {
+    fetchProdutos()
+  }, [])
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setError(null)
+    setSuccess(false)
+    setSubmitting(true)
+    const formData = new FormData(e.currentTarget)
+    const supabase = createClient()
+    const { error: dbError } = await (supabase.from('produtos') as any).insert({
+      codigo: formData.get('codigo') as string,
+      descricao: formData.get('descricao') as string,
+      unidade_medida: (formData.get('unidade_medida') as string) || 'UN',
+    })
+    if (dbError) {
+      setError(dbError.message)
+    } else {
+      setSuccess(true)
+      formRef.current?.reset()
+      fetchProdutos()
+      setTimeout(() => setSuccess(false), 3000)
+    }
+    setSubmitting(false)
+  }
+
+  if (loading) return <div style={{ color: '#888', padding: '40px', textAlign: 'center' }}>Carregando...</div>
 
   return (
     <div className="space-y-6">
@@ -36,12 +71,12 @@ export default async function ProdutosPage({ searchParams }: { searchParams: Pro
         <Package style={{ color: '#F5A623' }} className="h-8 w-8" />
       </div>
 
-      {erro && (
+      {error && (
         <div className="rounded px-4 py-3 text-sm" style={{ background: '#2a1212', border: '1px solid #F44336', color: '#F44336' }}>
-          Erro: {decodeURIComponent(erro)}
+          Erro: {error}
         </div>
       )}
-      {ok && (
+      {success && (
         <div className="rounded px-4 py-3 text-sm" style={{ background: '#122a12', border: '1px solid #4CAF50', color: '#4CAF50' }}>
           Produto salvo com sucesso!
         </div>
@@ -59,7 +94,7 @@ export default async function ProdutosPage({ searchParams }: { searchParams: Pro
           <Plus className="h-5 w-5" />
           NOVO PRODUTO
         </h2>
-        <form action={createProduto} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <form ref={formRef} onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium uppercase tracking-wide" style={{ color: '#888888' }}>
               Código *
@@ -72,8 +107,6 @@ export default async function ProdutosPage({ searchParams }: { searchParams: Pro
                 background: '#111111',
                 border: '1px solid #2A2A2A',
                 color: '#F5F5F5',
-                // @ts-ignore
-                '--tw-ring-color': '#F5A623',
               }}
             />
           </div>
@@ -102,10 +135,11 @@ export default async function ProdutosPage({ searchParams }: { searchParams: Pro
           <div className="sm:col-span-3 flex justify-end">
             <button
               type="submit"
-              className="rounded px-5 py-2 text-sm font-semibold transition-opacity hover:opacity-80"
+              disabled={submitting}
+              className="rounded px-5 py-2 text-sm font-semibold transition-opacity hover:opacity-80 disabled:opacity-50"
               style={{ background: '#F5A623', color: '#111111' }}
             >
-              Salvar Produto
+              {submitting ? 'Salvando...' : 'Salvar Produto'}
             </button>
           </div>
         </form>

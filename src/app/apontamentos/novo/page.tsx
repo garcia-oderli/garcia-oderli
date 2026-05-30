@@ -1,37 +1,36 @@
-import { createClient } from '@/lib/supabase/server'
+'use client'
+
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import { NovoApontamentoForm } from '@/components/novo-apontamento-form'
 import { ChevronLeft } from 'lucide-react'
 import Link from 'next/link'
 
-export const metadata = {
-  title: 'Novo Apontamento — Apontamento de Produção v1',
-}
+export default function NovoApontamentoPage() {
+  const [ordens, setOrdens] = useState<any[]>([])
+  const [funcionarios, setFuncionarios] = useState<any[]>([])
+  const [maquinas, setMaquinas] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
-export default async function NovoApontamentoPage() {
-  const supabase = await createClient()
+  useEffect(() => {
+    const supabase = createClient()
+    Promise.all([
+      supabase
+        .from('ordens_producao')
+        .select('id, numero, quantidade_planejada, data_prevista, status, produtos(codigo, descricao, unidade_medida)')
+        .in('status', ['ABERTA', 'EM_ANDAMENTO'])
+        .order('numero'),
+      supabase.from('funcionarios').select('id, matricula, nome, setor').order('nome'),
+      supabase.from('maquinas').select('id, codigo, descricao, setor').order('codigo'),
+    ]).then(([o, f, m]) => {
+      setOrdens(o.data ?? [])
+      setFuncionarios(f.data ?? [])
+      setMaquinas(m.data ?? [])
+      setLoading(false)
+    })
+  }, [])
 
-  let ordensRes: { data: any[] | null } = { data: null }
-  let funcionariosRes: { data: any[] | null } = { data: null }
-  let maquinasRes: { data: any[] | null } = { data: null }
-
-  if (supabase) {
-    try {
-      const [o, f, m] = await Promise.all([
-        supabase
-          .from('ordens_producao')
-          .select(
-            'id, numero, quantidade_planejada, data_prevista, status, produtos(codigo, descricao, unidade_medida)'
-          )
-          .in('status', ['ABERTA', 'EM_ANDAMENTO'])
-          .order('numero'),
-        supabase.from('funcionarios').select('id, matricula, nome, setor').order('nome'),
-        supabase.from('maquinas').select('id, codigo, descricao, setor').order('codigo'),
-      ])
-      ordensRes = o
-      funcionariosRes = f
-      maquinasRes = m
-    } catch {}
-  }
+  if (loading) return <div style={{ color: '#888', padding: '40px', textAlign: 'center' }}>Carregando...</div>
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -64,9 +63,9 @@ export default async function NovoApontamentoPage() {
       </div>
 
       <NovoApontamentoForm
-        ordens={(ordensRes.data ?? []) as Parameters<typeof NovoApontamentoForm>[0]['ordens']}
-        funcionarios={funcionariosRes.data ?? []}
-        maquinas={maquinasRes.data ?? []}
+        ordens={ordens as Parameters<typeof NovoApontamentoForm>[0]['ordens']}
+        funcionarios={funcionarios}
+        maquinas={maquinas}
       />
     </div>
   )
