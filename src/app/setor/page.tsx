@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { RefreshCw, BarChart3, TrendingUp, TrendingDown, Users, Cpu, Clock } from 'lucide-react'
+import { RefreshCw, BarChart3, TrendingUp, TrendingDown, Users, Cpu, ExternalLink } from 'lucide-react'
+import Link from 'next/link'
 
 type Periodo = 'hoje' | '7d' | '30d'
 
@@ -229,9 +230,11 @@ function SetorCard({ s }: { s: SetorStats }) {
     <div style={{ background: '#1C1C1C', border: `1px solid ${hasActivity ? '#3A3A3A' : '#2A2A2A'}`, borderRadius: '10px', overflow: 'hidden' }}>
       {/* Header */}
       <div style={{ padding: '14px 16px', borderBottom: '1px solid #2A2A2A', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <h2 style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '17px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#F5F5F5', margin: 0 }}>
-          {s.setor}
-        </h2>
+        <Link href={`/setor/${encodeURIComponent(s.setor)}`} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <h2 style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '17px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#F5F5F5', margin: 0 }}>
+            {s.setor}
+          </h2>
+          <ExternalLink size={12} style={{ color: '#555' }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           {hasActivity && (
             <span style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: '#4CAF50', boxShadow: '0 0 6px #4CAF5099' }} />
