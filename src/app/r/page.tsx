@@ -222,23 +222,28 @@ export default function ApontamentoRapido() {
       {topBar}
       <div style={s.card}>
         <h2 style={s.title}>Qual máquina?</h2>
-        <p style={s.sub}>Escaneie o QR ou toque na lista</p>
-        <button style={{ ...s.btn, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '16px', marginTop: 0 }}
+        <p style={s.sub}>Selecione ou escaneie o QR Code</p>
+
+        <label style={s.label}>Máquina</label>
+        <select
+          defaultValue=""
+          onChange={e => {
+            const m = maquinas.find(m => m.id === e.target.value)
+            if (m) confirmarMaquina(m.id, m.codigo)
+          }}
+          style={{ width: '100%', background: '#111', border: '1px solid #2A2A2A', borderRadius: '8px', color: '#F5F5F5', fontSize: '16px', padding: '14px 12px', outline: 'none', marginBottom: '16px', appearance: 'auto' }}
+        >
+          <option value="" disabled>Selecione a máquina...</option>
+          {maquinas.map(m => (
+            <option key={m.id} value={m.id}>{m.codigo} — {m.descricao}</option>
+          ))}
+        </select>
+
+        <button style={{ ...s.btn, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: 0 }}
           onClick={() => abrirQr('maquina')}>
-          <QrCode size={20} /> Escanear QR da Máquina
+          <QrCode size={18} /> Escanear QR da Máquina
         </button>
         {erro && <div style={s.erro}><AlertCircle size={14} />{erro}</div>}
-        <div style={{ maxHeight: '45vh', overflowY: 'auto' }}>
-          {maquinas.map(m => (
-            <div key={m.id} style={s.maqCard} onClick={() => confirmarMaquina(m.id, m.codigo)}>
-              <div>
-                <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700, color: '#F5A623', fontSize: '16px' }}>{m.codigo}</div>
-                <div style={{ fontSize: '13px', color: '#888888' }}>{m.descricao}</div>
-              </div>
-              <ChevronRight size={18} style={{ color: '#555' }} />
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   )

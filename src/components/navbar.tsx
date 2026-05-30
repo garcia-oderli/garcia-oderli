@@ -3,12 +3,20 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { ChevronDown, Menu, X, Zap, Plus } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 export function Navbar() {
   const pathname = usePathname()
   const [cadastrosOpen, setCadastrosOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 769)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   const cadastrosLinks = [
     { href: '/cadastros/produtos', label: 'Produtos' },
@@ -52,7 +60,7 @@ export function Navbar() {
           </Link>
 
           {/* Desktop nav */}
-          <nav style={{ display: 'flex', alignItems: 'center', gap: '4px' }} className="hidden-mobile">
+          <nav style={{ display: isMobile ? 'none' : 'flex', alignItems: 'center', gap: '4px' }}>
             <Link href="/" style={linkStyle(pathname === '/')}>Dashboard</Link>
             <Link href="/apontamentos" style={linkStyle(pathname === '/apontamentos')}>Apontamentos</Link>
 
@@ -82,7 +90,7 @@ export function Navbar() {
           </nav>
 
           {/* Mobile: botões rápidos + hamburguer */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }} className="show-mobile">
+          <div style={{ display: isMobile ? 'flex' : 'none', alignItems: 'center', gap: '8px' }}>
             <Link href="/r" style={{ padding: '7px 12px', fontSize: '13px', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', background: 'transparent', border: '1px solid #F5A623', color: '#F5A623', textDecoration: 'none', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
               <Zap size={13} /> Rápido
             </Link>
@@ -97,8 +105,8 @@ export function Navbar() {
       </div>
 
       {/* Mobile menu */}
-      {mobileOpen && (
-        <div style={{ background: '#1C1C1C', borderTop: '1px solid #2A2A2A', padding: '8px 16px 16px' }} className="show-mobile">
+      {mobileOpen && isMobile && (
+        <div style={{ background: '#1C1C1C', borderTop: '1px solid #2A2A2A', padding: '8px 16px 16px' }}>
           <Link href="/" style={linkStyle(pathname === '/')} onClick={() => setMobileOpen(false)}>Dashboard</Link>
           <Link href="/apontamentos" style={linkStyle(pathname === '/apontamentos')} onClick={() => setMobileOpen(false)}>Apontamentos</Link>
           <div style={{ padding: '10px 16px 4px', fontSize: '11px', fontFamily: 'Barlow Condensed, sans-serif', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#555' }}>Cadastros</div>
@@ -113,16 +121,6 @@ export function Navbar() {
         </div>
       )}
 
-      <style>{`
-        @media (max-width: 768px) {
-          .hidden-mobile { display: none !important; }
-          .show-mobile { display: flex !important; }
-        }
-        @media (min-width: 769px) {
-          .show-mobile { display: none !important; }
-          .hidden-mobile { display: flex !important; }
-        }
-      `}</style>
     </header>
   )
 }
