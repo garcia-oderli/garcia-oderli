@@ -23,9 +23,13 @@ function getTurnoLabel(t: string) {
 
 const STORAGE_KEY = 'ritmoprod_sessao'
 
+function hoje() {
+  return new Date().toISOString().slice(0, 10)
+}
+
 function salvarSessao(maquinaId: string, maquinaCodigo: string, funcionario: any) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ maquinaId, maquinaCodigo, funcionario }))
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ maquinaId, maquinaCodigo, funcionario, dia: hoje() }))
   } catch {}
 }
 
@@ -33,7 +37,10 @@ function carregarSessao() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
-    return JSON.parse(raw)
+    const s = JSON.parse(raw)
+    // Expira ao virar o dia
+    if (s.dia !== hoje()) { localStorage.removeItem(STORAGE_KEY); return null }
+    return s
   } catch { return null }
 }
 
