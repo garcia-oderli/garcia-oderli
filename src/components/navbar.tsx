@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ChevronDown, Menu, X, Zap, Plus } from 'lucide-react'
+import { ChevronDown, Menu, X, Zap, Plus, LayoutDashboard } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
 export function Navbar() {
@@ -63,6 +63,9 @@ export function Navbar() {
           <nav style={{ display: isMobile ? 'none' : 'flex', alignItems: 'center', gap: '4px' }}>
             <Link href="/" style={linkStyle(pathname === '/')}>Dashboard</Link>
             <Link href="/apontamentos" style={linkStyle(pathname === '/apontamentos')}>Apontamentos</Link>
+            <Link href="/setor" style={{ ...linkStyle(pathname === '/setor'), display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <LayoutDashboard size={13} /> Setores
+            </Link>
 
             <div style={{ position: 'relative' }}>
               <button
@@ -109,6 +112,7 @@ export function Navbar() {
         <div style={{ background: '#1C1C1C', borderTop: '1px solid #2A2A2A', padding: '8px 16px 16px' }}>
           <Link href="/" style={linkStyle(pathname === '/')} onClick={() => setMobileOpen(false)}>Dashboard</Link>
           <Link href="/apontamentos" style={linkStyle(pathname === '/apontamentos')} onClick={() => setMobileOpen(false)}>Apontamentos</Link>
+          <Link href="/setor" style={linkStyle(pathname === '/setor')} onClick={() => setMobileOpen(false)}>Setores</Link>
           <div style={{ padding: '10px 16px 4px', fontSize: '11px', fontFamily: 'Barlow Condensed, sans-serif', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#555' }}>Cadastros</div>
           {cadastrosLinks.map(l => (
             <Link key={l.href} href={l.href} style={{ ...linkStyle(pathname === l.href), paddingLeft: '28px' }} onClick={() => setMobileOpen(false)}>{l.label}</Link>
