@@ -111,6 +111,13 @@ export default function SetorTVPage() {
   const setor = decodeURIComponent(params.setor as string)
 
   const [aba, setAba] = useState<Aba>('geral')
+  const [isFullscreen, setIsFullscreen] = useState(false)
+
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', onChange)
+    return () => document.removeEventListener('fullscreenchange', onChange)
+  }, [])
   const [meta, setMeta] = useState<MetaSetor | null>(null)
   const [linhas, setLinhas] = useState<HoraLinha[]>([])
   const [maquinas, setMaquinas] = useState<MaquinaCard[]>([])
@@ -262,9 +269,15 @@ export default function SetorTVPage() {
             style={{ background: 'transparent', border: '1px solid #2A2A2A', borderRadius: '4px', color: paused ? '#F5A623' : '#666', padding: '5px 8px', cursor: 'pointer' }}>
             {paused ? <Play size={11} /> : <Pause size={11} />}
           </button>
-          <button onClick={() => document.documentElement.requestFullscreen?.()}
-            style={{ background: 'transparent', border: '1px solid #2A2A2A', borderRadius: '4px', color: '#666', padding: '5px 8px', cursor: 'pointer' }}>
-            <Maximize2 size={11} />
+          <button onClick={() => {
+              if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {})
+              } else {
+                document.exitFullscreen().catch(() => {})
+              }
+            }}
+            style={{ display: 'flex', alignItems: 'center', gap: '5px', background: isFullscreen ? '#2A3A2A' : 'transparent', border: `1px solid ${isFullscreen ? '#4CAF50' : '#2A2A2A'}`, borderRadius: '4px', color: isFullscreen ? '#4CAF50' : '#888', padding: '5px 10px', cursor: 'pointer', fontSize: '11px', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, letterSpacing: '0.06em' }}>
+            <Maximize2 size={11} /> {isFullscreen ? 'SAIR' : 'TELA CHEIA'}
           </button>
           <div style={{ fontSize: '26px', fontWeight: 700, color: '#F5A623', letterSpacing: '0.05em', minWidth: '95px', textAlign: 'right' }}>
             {pad(agora.getHours())}:{pad(agora.getMinutes())}:{pad(agora.getSeconds())}
