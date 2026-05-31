@@ -112,6 +112,14 @@ export default function SetorTVPage() {
 
   const [aba, setAba] = useState<Aba>('geral')
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   useEffect(() => {
     const onChange = () => setIsFullscreen(!!document.fullscreenElement)
@@ -242,77 +250,92 @@ export default function SetorTVPage() {
     <div style={{ background: '#111', height: '100vh', color: '#F5F5F5', fontFamily: 'Barlow Condensed, sans-serif', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
       {/* Top bar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 20px', background: '#1C1C1C', borderBottom: '1px solid #2A2A2A', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <Link href="/setor" style={{ color: '#555', textDecoration: 'none', fontSize: '12px', letterSpacing: '0.06em' }}>
-            ← SETORES
-          </Link>
-          <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#F5F5F5' }}>
-            {setor}
-          </h1>
-          {/* Abas */}
-          <div style={{ display: 'flex', background: '#111', border: '1px solid #2A2A2A', borderRadius: '4px', overflow: 'hidden' }}>
+      <div style={{ background: '#1C1C1C', borderBottom: '1px solid #2A2A2A', flexShrink: 0 }}>
+        {/* Row 1: back + title + clock */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isMobile ? '8px 12px' : '8px 20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '10px' : '20px' }}>
+            <Link href="/setor" style={{ color: '#555', textDecoration: 'none', fontSize: '12px', letterSpacing: '0.06em', flexShrink: 0 }}>
+              ← {isMobile ? '' : 'SETORES'}
+            </Link>
+            <h1 style={{ margin: 0, fontSize: isMobile ? '16px' : '22px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#F5F5F5' }}>
+              {setor}
+            </h1>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {!isMobile && (
+              <>
+                <button onClick={() => setMetaEditOpen(true)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'transparent', border: '1px solid #2A2A2A', borderRadius: '4px', color: '#666', padding: '5px 10px', cursor: 'pointer', fontSize: '11px', letterSpacing: '0.05em' }}>
+                  <Settings size={11} /> META
+                </button>
+                <button onClick={() => setPaused(p => !p)}
+                  style={{ background: 'transparent', border: '1px solid #2A2A2A', borderRadius: '4px', color: paused ? '#F5A623' : '#666', padding: '5px 8px', cursor: 'pointer' }}>
+                  {paused ? <Play size={11} /> : <Pause size={11} />}
+                </button>
+                <button onClick={() => { if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {}); else document.exitFullscreen().catch(() => {}) }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '5px', background: isFullscreen ? '#2A3A2A' : 'transparent', border: `1px solid ${isFullscreen ? '#4CAF50' : '#2A2A2A'}`, borderRadius: '4px', color: isFullscreen ? '#4CAF50' : '#888', padding: '5px 10px', cursor: 'pointer', fontSize: '11px', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, letterSpacing: '0.06em' }}>
+                  <Maximize2 size={11} /> {isFullscreen ? 'SAIR' : 'TELA CHEIA'}
+                </button>
+              </>
+            )}
+            <div style={{ fontSize: isMobile ? '18px' : '26px', fontWeight: 700, color: '#F5A623', letterSpacing: '0.05em' }}>
+              {pad(agora.getHours())}:{pad(agora.getMinutes())}{!isMobile && `:${pad(agora.getSeconds())}`}
+            </div>
+          </div>
+        </div>
+        {/* Row 2: tabs + actions (mobile: tabs full-width) */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isMobile ? '0 12px 8px' : '0 20px 8px', gap: '8px' }}>
+          <div style={{ display: 'flex', background: '#111', border: '1px solid #2A2A2A', borderRadius: '4px', overflow: 'hidden', flex: isMobile ? 1 : undefined }}>
             {(['geral', 'maquinas'] as Aba[]).map(a => (
               <button key={a} onClick={() => setAba(a)}
-                style={{ padding: '5px 16px', fontSize: '12px', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', cursor: 'pointer', background: aba === a ? '#F5A623' : 'transparent', color: aba === a ? '#111' : '#666' }}>
+                style={{ flex: isMobile ? 1 : undefined, padding: '6px 16px', fontSize: '12px', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', cursor: 'pointer', background: aba === a ? '#F5A623' : 'transparent', color: aba === a ? '#111' : '#666' }}>
                 {a === 'geral' ? 'GERAL' : `MÁQUINAS (${maquinas.length})`}
               </button>
             ))}
           </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <button onClick={() => setMetaEditOpen(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'transparent', border: '1px solid #2A2A2A', borderRadius: '4px', color: '#666', padding: '5px 10px', cursor: 'pointer', fontSize: '11px', letterSpacing: '0.05em' }}>
-            <Settings size={11} /> META
-          </button>
-          <button onClick={() => setPaused(p => !p)}
-            style={{ background: 'transparent', border: '1px solid #2A2A2A', borderRadius: '4px', color: paused ? '#F5A623' : '#666', padding: '5px 8px', cursor: 'pointer' }}>
-            {paused ? <Play size={11} /> : <Pause size={11} />}
-          </button>
-          <button onClick={() => {
-              if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(() => {})
-              } else {
-                document.exitFullscreen().catch(() => {})
-              }
-            }}
-            style={{ display: 'flex', alignItems: 'center', gap: '5px', background: isFullscreen ? '#2A3A2A' : 'transparent', border: `1px solid ${isFullscreen ? '#4CAF50' : '#2A2A2A'}`, borderRadius: '4px', color: isFullscreen ? '#4CAF50' : '#888', padding: '5px 10px', cursor: 'pointer', fontSize: '11px', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, letterSpacing: '0.06em' }}>
-            <Maximize2 size={11} /> {isFullscreen ? 'SAIR' : 'TELA CHEIA'}
-          </button>
-          <div style={{ fontSize: '26px', fontWeight: 700, color: '#F5A623', letterSpacing: '0.05em', minWidth: '95px', textAlign: 'right' }}>
-            {pad(agora.getHours())}:{pad(agora.getMinutes())}:{pad(agora.getSeconds())}
-          </div>
+          {isMobile && (
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button onClick={() => setMetaEditOpen(true)}
+                style={{ display: 'flex', alignItems: 'center', background: 'transparent', border: '1px solid #2A2A2A', borderRadius: '4px', color: '#666', padding: '6px 8px', cursor: 'pointer' }}>
+                <Settings size={13} />
+              </button>
+              <button onClick={() => setPaused(p => !p)}
+                style={{ background: 'transparent', border: '1px solid #2A2A2A', borderRadius: '4px', color: paused ? '#F5A623' : '#666', padding: '6px 8px', cursor: 'pointer' }}>
+                {paused ? <Play size={13} /> : <Pause size={13} />}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Content */}
       {aba === 'geral' ? (
-        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '70% 30%', overflow: 'hidden' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', overflow: 'hidden' }}>
           {/* Tabela hora a hora */}
-          <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: '1px solid #2A2A2A' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: isMobile ? 'none' : '1px solid #2A2A2A', borderBottom: isMobile ? '1px solid #2A2A2A' : 'none', flex: isMobile ? '0 0 55%' : undefined, width: isMobile ? undefined : '70%' }}>
             {/* Table header */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 0.7fr 1fr 1fr 1fr', padding: '10px 28px', background: '#181818', borderBottom: '1px solid #222', flexShrink: 0 }}>
-              {['HORA', `META/${unidade.toUpperCase()}`, 'REALIZADO', 'ACUM.', 'STATUS'].map(h => (
-                <div key={h} style={{ fontSize: '12px', color: '#444', letterSpacing: '0.12em', fontWeight: 700 }}>{h}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1.2fr 0.7fr 0.8fr 0.8fr 0.9fr' : '1fr 0.7fr 1fr 1fr 1fr', padding: isMobile ? '8px 12px' : '10px 28px', background: '#181818', borderBottom: '1px solid #222', flexShrink: 0 }}>
+              {['HORA', `META`, 'REAL.', 'ACUM.', 'STATUS'].map(h => (
+                <div key={h} style={{ fontSize: '11px', color: '#444', letterSpacing: '0.10em', fontWeight: 700 }}>{h}</div>
               ))}
             </div>
-            {/* Rows — stretch to fill height evenly */}
+            {/* Rows */}
             <div ref={tbodyRef} style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
               {linhas.map((l, i) => {
                 const isAtivo = now >= l.inicio && now < l.fim
                 const isPast = now >= l.fim
                 return (
                   <div key={i} data-active={isAtivo ? 'true' : 'false'}
-                    style={{ display: 'grid', gridTemplateColumns: '1fr 0.7fr 1fr 1fr 1fr', padding: '0 28px', flex: 1, alignItems: 'center', background: isAtivo ? '#1A2A1A' : 'transparent', borderBottom: '1px solid #1A1A1A', borderLeft: isAtivo ? '4px solid #4CAF50' : '4px solid transparent', minHeight: '52px' }}>
-                    <div style={{ fontSize: '20px', color: isAtivo ? '#F5F5F5' : isPast ? '#999' : '#3A3A3A', fontWeight: isAtivo ? 700 : 500, letterSpacing: '0.04em' }}>{l.hora}</div>
-                    <div style={{ fontSize: '20px', color: '#555', fontWeight: 500 }}>{l.meta_h > 0 ? fmtNum(l.meta_h) : '—'}</div>
-                    <div style={{ fontSize: '28px', fontWeight: 700, color: isPast || isAtivo ? statusColor(l.status) : '#2A2A2A' }}>
+                    style={{ display: 'grid', gridTemplateColumns: isMobile ? '1.2fr 0.7fr 0.8fr 0.8fr 0.9fr' : '1fr 0.7fr 1fr 1fr 1fr', padding: isMobile ? '0 12px' : '0 28px', flex: 1, alignItems: 'center', background: isAtivo ? '#1A2A1A' : 'transparent', borderBottom: '1px solid #1A1A1A', borderLeft: isAtivo ? '4px solid #4CAF50' : '4px solid transparent', minHeight: isMobile ? '38px' : '52px' }}>
+                    <div style={{ fontSize: isMobile ? '13px' : '20px', color: isAtivo ? '#F5F5F5' : isPast ? '#999' : '#3A3A3A', fontWeight: isAtivo ? 700 : 500, letterSpacing: '0.02em' }}>{l.hora}</div>
+                    <div style={{ fontSize: isMobile ? '13px' : '20px', color: '#555', fontWeight: 500 }}>{l.meta_h > 0 ? fmtNum(l.meta_h) : '—'}</div>
+                    <div style={{ fontSize: isMobile ? '16px' : '28px', fontWeight: 700, color: isPast || isAtivo ? statusColor(l.status) : '#2A2A2A' }}>
                       {l.realizado > 0 ? fmtNum(l.realizado) : isPast ? '0' : '—'}
                     </div>
-                    <div style={{ fontSize: '28px', fontWeight: 700, color: isPast || isAtivo ? (l.status === 'ABX' ? '#F44336' : '#F5F5F5') : '#2A2A2A' }}>
+                    <div style={{ fontSize: isMobile ? '16px' : '28px', fontWeight: 700, color: isPast || isAtivo ? (l.status === 'ABX' ? '#F44336' : '#F5F5F5') : '#2A2A2A' }}>
                       {l.acumulado > 0 ? fmtNum(l.acumulado) : '—'}
                     </div>
-                    <div style={{ fontSize: '17px', fontWeight: 700, color: statusColor(l.status), letterSpacing: '0.06em' }}>
+                    <div style={{ fontSize: isMobile ? '12px' : '17px', fontWeight: 700, color: statusColor(l.status), letterSpacing: '0.04em' }}>
                       {l.status !== 'FUTURO' ? statusLabel(l.status) : ''}
                     </div>
                   </div>
@@ -322,43 +345,48 @@ export default function SetorTVPage() {
           </div>
 
           {/* KPIs */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '14px', overflowY: 'auto' }}>
-            <KpiBox label="Meta do Dia">
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                <span style={{ fontSize: '48px', fontWeight: 700, color: '#F5A623', lineHeight: 1 }}>{metaDia > 0 ? fmtNum(metaDia) : '—'}</span>
-                <span style={{ fontSize: '16px', color: '#666', textTransform: 'uppercase' }}>{unidade}</span>
+          <div style={{ display: 'flex', flexDirection: isMobile ? 'row' : 'column', gap: '8px', padding: isMobile ? '8px 12px' : '14px', overflowX: isMobile ? 'auto' : undefined, overflowY: isMobile ? undefined : 'auto', flex: isMobile ? '1 1 auto' : undefined, width: isMobile ? undefined : '30%', flexShrink: 0 }}>
+            <KpiBox label="Meta" compact={isMobile}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                <span style={{ fontSize: isMobile ? '28px' : '48px', fontWeight: 700, color: '#F5A623', lineHeight: 1 }}>{metaDia > 0 ? fmtNum(metaDia) : '—'}</span>
+                <span style={{ fontSize: '12px', color: '#666', textTransform: 'uppercase' }}>{unidade}</span>
               </div>
             </KpiBox>
-            <KpiBox label="Produção Acumulada">
-              <div style={{ fontSize: '88px', fontWeight: 700, color: efColor, lineHeight: 1 }}>{fmtNum(totalProduzido)}</div>
+            <KpiBox label="Produzido" compact={isMobile}>
+              <div style={{ fontSize: isMobile ? '40px' : '88px', fontWeight: 700, color: efColor, lineHeight: 1 }}>{fmtNum(totalProduzido)}</div>
             </KpiBox>
-            <KpiBox label="Eficiência" right={metaDia > 0 ? <Tag color={efColor}>{eficiencia >= 95 ? '● NO PLANO' : eficiencia >= 75 ? '! ATENÇÃO' : '● ABAIXO'}</Tag> : undefined}>
-              <div style={{ fontSize: '64px', fontWeight: 700, color: efColor, lineHeight: 1 }}>{metaDia > 0 ? fmtPct(eficiencia) : '—'}</div>
+            <KpiBox label="Eficiência" compact={isMobile} right={metaDia > 0 && !isMobile ? <Tag color={efColor}>{eficiencia >= 95 ? '● NO PLANO' : eficiencia >= 75 ? '! ATENÇÃO' : '● ABAIXO'}</Tag> : undefined}>
+              <div style={{ fontSize: isMobile ? '32px' : '64px', fontWeight: 700, color: efColor, lineHeight: 1 }}>{metaDia > 0 ? fmtPct(eficiencia) : '—'}</div>
+              {isMobile && metaDia > 0 && <Tag color={efColor}>{eficiencia >= 95 ? 'OK' : eficiencia >= 75 ? 'ATEN' : 'ABX'}</Tag>}
             </KpiBox>
-            <KpiBox label="Progresso do Dia" right={<span style={{ fontSize: '14px', color: efColor, fontWeight: 700 }}>{fmtPct(progresso)}</span>}>
-              <div style={{ height: '10px', background: '#2A2A2A', borderRadius: '5px', overflow: 'hidden', margin: '8px 0 6px' }}>
-                <div style={{ height: '100%', width: `${progresso}%`, background: efColor, borderRadius: '5px', transition: 'width 0.5s' }} />
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '11px', color: '#333' }}>0</span>
-                <span style={{ fontSize: '11px', color: '#444' }}>Meta: {fmtNum(metaDia)}</span>
-              </div>
-            </KpiBox>
-            <KpiBox label="">
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
-                {[
-                  { label: 'Ritmo Atual', value: ritmoAtual > 0 ? fmtNum(Math.round(ritmoAtual)) : '—', sub: `${unidade}/hora`, color: efColor },
-                  { label: 'Necessário', value: ritmoNecessario > 0 && minRestantes > 0 ? fmtNum(Math.round(ritmoNecessario)) : '—', sub: `${unidade}/hora`, color: '#666' },
-                  { label: 'Projeção', value: projecao > 0 ? fmtNum(Math.round(projecao)) : '—', sub: `${unidade} final`, color: projecao >= metaDia ? '#4CAF50' : '#F44336' },
-                ].map(k => (
-                  <div key={k.label}>
-                    <div style={{ fontSize: '11px', color: '#444', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '6px' }}>{k.label}</div>
-                    <div style={{ fontSize: '36px', fontWeight: 700, color: k.color, lineHeight: 1 }}>{k.value}</div>
-                    <div style={{ fontSize: '10px', color: '#333', marginTop: '4px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{k.sub}</div>
+            {!isMobile && (
+              <>
+                <KpiBox label="Progresso do Dia" right={<span style={{ fontSize: '14px', color: efColor, fontWeight: 700 }}>{fmtPct(progresso)}</span>}>
+                  <div style={{ height: '10px', background: '#2A2A2A', borderRadius: '5px', overflow: 'hidden', margin: '8px 0 6px' }}>
+                    <div style={{ height: '100%', width: `${progresso}%`, background: efColor, borderRadius: '5px', transition: 'width 0.5s' }} />
                   </div>
-                ))}
-              </div>
-            </KpiBox>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '11px', color: '#333' }}>0</span>
+                    <span style={{ fontSize: '11px', color: '#444' }}>Meta: {fmtNum(metaDia)}</span>
+                  </div>
+                </KpiBox>
+                <KpiBox label="">
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                    {[
+                      { label: 'Ritmo Atual', value: ritmoAtual > 0 ? fmtNum(Math.round(ritmoAtual)) : '—', sub: `${unidade}/hora`, color: efColor },
+                      { label: 'Necessário', value: ritmoNecessario > 0 && minRestantes > 0 ? fmtNum(Math.round(ritmoNecessario)) : '—', sub: `${unidade}/hora`, color: '#666' },
+                      { label: 'Projeção', value: projecao > 0 ? fmtNum(Math.round(projecao)) : '—', sub: `${unidade} final`, color: projecao >= metaDia ? '#4CAF50' : '#F44336' },
+                    ].map(k => (
+                      <div key={k.label}>
+                        <div style={{ fontSize: '11px', color: '#444', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '6px' }}>{k.label}</div>
+                        <div style={{ fontSize: '36px', fontWeight: 700, color: k.color, lineHeight: 1 }}>{k.value}</div>
+                        <div style={{ fontSize: '10px', color: '#333', marginTop: '4px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{k.sub}</div>
+                      </div>
+                    ))}
+                  </div>
+                </KpiBox>
+              </>
+            )}
           </div>
         </div>
       ) : (
@@ -392,11 +420,11 @@ export default function SetorTVPage() {
   )
 }
 
-function KpiBox({ label, children, right }: { label: string; children: React.ReactNode; right?: React.ReactNode }) {
+function KpiBox({ label, children, right, compact }: { label: string; children: React.ReactNode; right?: React.ReactNode; compact?: boolean }) {
   return (
-    <div style={{ background: '#1C1C1C', border: '1px solid #222', borderRadius: '8px', padding: '12px 16px' }}>
+    <div style={{ background: '#1C1C1C', border: '1px solid #222', borderRadius: '8px', padding: compact ? '10px 12px' : '12px 16px', flexShrink: compact ? 0 : undefined, minWidth: compact ? '110px' : undefined }}>
       {label && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
           <div style={{ fontSize: '10px', color: '#444', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{label}</div>
           {right}
         </div>

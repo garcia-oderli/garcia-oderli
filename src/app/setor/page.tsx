@@ -52,6 +52,14 @@ export default function SetorPage() {
   const [loading, setLoading] = useState(true)
   const [periodo, setPeriodo] = useState<Periodo>('hoje')
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -157,34 +165,34 @@ export default function SetorPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-        <div>
-          <h1 style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '28px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#F5F5F5', margin: 0 }}>
-            PAINEL POR SETOR
-          </h1>
-          <p style={{ color: '#888', fontSize: '13px', marginTop: '4px' }}>
-            Visão gerencial de produção · {lastUpdate ? `Atualizado ${formatRelative(lastUpdate.toISOString())}` : 'Carregando...'}
-          </p>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {/* Period selector */}
-          <div style={{ display: 'flex', background: '#1C1C1C', border: '1px solid #2A2A2A', borderRadius: '6px', overflow: 'hidden' }}>
-            {periodos.map(p => (
-              <button key={p} onClick={() => setPeriodo(p)}
-                style={{ padding: '7px 14px', fontSize: '12px', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', border: 'none', cursor: 'pointer', background: periodo === p ? '#F5A623' : 'transparent', color: periodo === p ? '#111' : '#888', transition: 'background 0.15s' }}>
-                {periodoLabel(p)}
-              </button>
-            ))}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
+          <div>
+            <h1 style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: isMobile ? '22px' : '28px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#F5F5F5', margin: 0 }}>
+              PAINEL POR SETOR
+            </h1>
+            <p style={{ color: '#888', fontSize: '12px', marginTop: '4px' }}>
+              {lastUpdate ? `Atualizado ${formatRelative(lastUpdate.toISOString())}` : 'Carregando...'}
+            </p>
           </div>
           <button onClick={fetchData} disabled={loading}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 12px', background: '#1C1C1C', border: '1px solid #2A2A2A', borderRadius: '6px', color: '#888', cursor: 'pointer', fontSize: '12px' }}>
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 12px', background: '#1C1C1C', border: '1px solid #2A2A2A', borderRadius: '6px', color: '#888', cursor: 'pointer', fontSize: '12px', flexShrink: 0 }}>
             <RefreshCw size={13} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
           </button>
         </div>
+        {/* Period selector — full width on mobile */}
+        <div style={{ display: 'flex', background: '#1C1C1C', border: '1px solid #2A2A2A', borderRadius: '6px', overflow: 'hidden' }}>
+          {periodos.map(p => (
+            <button key={p} onClick={() => setPeriodo(p)}
+              style={{ flex: 1, padding: '9px 8px', fontSize: '12px', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', border: 'none', cursor: 'pointer', background: periodo === p ? '#F5A623' : 'transparent', color: periodo === p ? '#111' : '#888', transition: 'background 0.15s' }}>
+              {isMobile ? (p === 'hoje' ? 'Hoje' : p === '7d' ? '7 dias' : '30 dias') : periodoLabel(p)}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Totals row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+      {/* Totals row — 2x2 on mobile, 4 cols on desktop */}
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: '10px' }}>
         {[
           { label: 'Apontamentos', value: formatNum(totalAp), icon: <BarChart3 size={18} />, color: '#4A9EDF' },
           { label: 'Produzido', value: formatNum(totalProduzido), icon: <TrendingUp size={18} />, color: '#4CAF50' },
