@@ -43,7 +43,7 @@ export default function OrdensPage() {
     Promise.all([
       supabase
         .from('ordens_producao')
-        .select('id, numero, quantidade_planejada, data_prevista, status, created_at, produtos(codigo, descricao)')
+        .select('id, numero, produto_id, quantidade_planejada, data_prevista, status, created_at, produtos(codigo, descricao)')
         .order('numero'),
       supabase.from('produtos').select('id, codigo, descricao').order('codigo'),
     ]).then(([ordensRes, produtosRes]) => {
