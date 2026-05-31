@@ -277,27 +277,29 @@ export default function SetorTVPage() {
         <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 340px', overflow: 'hidden' }}>
           {/* Tabela hora a hora */}
           <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: '1px solid #2A2A2A' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '130px 90px 110px 110px 130px', padding: '8px 20px', background: '#181818', borderBottom: '1px solid #222', flexShrink: 0 }}>
+            {/* Table header */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 0.7fr 1fr 1fr 1fr', padding: '10px 28px', background: '#181818', borderBottom: '1px solid #222', flexShrink: 0 }}>
               {['HORA', `META/${unidade.toUpperCase()}`, 'REALIZADO', 'ACUM.', 'STATUS'].map(h => (
-                <div key={h} style={{ fontSize: '10px', color: '#444', letterSpacing: '0.1em' }}>{h}</div>
+                <div key={h} style={{ fontSize: '12px', color: '#444', letterSpacing: '0.12em', fontWeight: 700 }}>{h}</div>
               ))}
             </div>
-            <div ref={tbodyRef} style={{ flex: 1, overflowY: 'auto' }}>
+            {/* Rows — stretch to fill height evenly */}
+            <div ref={tbodyRef} style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
               {linhas.map((l, i) => {
                 const isAtivo = now >= l.inicio && now < l.fim
                 const isPast = now >= l.fim
                 return (
                   <div key={i} data-active={isAtivo ? 'true' : 'false'}
-                    style={{ display: 'grid', gridTemplateColumns: '130px 90px 110px 110px 130px', padding: '11px 20px', background: isAtivo ? '#1A2A1A' : 'transparent', borderBottom: '1px solid #1A1A1A', borderLeft: isAtivo ? '3px solid #4CAF50' : '3px solid transparent' }}>
-                    <div style={{ fontSize: '15px', color: isAtivo ? '#F5F5F5' : isPast ? '#888' : '#3A3A3A', fontWeight: isAtivo ? 700 : 400 }}>{l.hora}</div>
-                    <div style={{ fontSize: '15px', color: '#444' }}>{l.meta_h > 0 ? fmtNum(l.meta_h) : '—'}</div>
-                    <div style={{ fontSize: '19px', fontWeight: 700, color: isPast || isAtivo ? statusColor(l.status) : '#2A2A2A' }}>
+                    style={{ display: 'grid', gridTemplateColumns: '1fr 0.7fr 1fr 1fr 1fr', padding: '0 28px', flex: 1, alignItems: 'center', background: isAtivo ? '#1A2A1A' : 'transparent', borderBottom: '1px solid #1A1A1A', borderLeft: isAtivo ? '4px solid #4CAF50' : '4px solid transparent', minHeight: '52px' }}>
+                    <div style={{ fontSize: '20px', color: isAtivo ? '#F5F5F5' : isPast ? '#999' : '#3A3A3A', fontWeight: isAtivo ? 700 : 500, letterSpacing: '0.04em' }}>{l.hora}</div>
+                    <div style={{ fontSize: '20px', color: '#555', fontWeight: 500 }}>{l.meta_h > 0 ? fmtNum(l.meta_h) : '—'}</div>
+                    <div style={{ fontSize: '28px', fontWeight: 700, color: isPast || isAtivo ? statusColor(l.status) : '#2A2A2A' }}>
                       {l.realizado > 0 ? fmtNum(l.realizado) : isPast ? '0' : '—'}
                     </div>
-                    <div style={{ fontSize: '19px', fontWeight: 700, color: isPast || isAtivo ? (l.status === 'ABX' ? '#F44336' : '#F5F5F5') : '#2A2A2A' }}>
+                    <div style={{ fontSize: '28px', fontWeight: 700, color: isPast || isAtivo ? (l.status === 'ABX' ? '#F44336' : '#F5F5F5') : '#2A2A2A' }}>
                       {l.acumulado > 0 ? fmtNum(l.acumulado) : '—'}
                     </div>
-                    <div style={{ fontSize: '13px', fontWeight: 700, color: statusColor(l.status), letterSpacing: '0.05em' }}>
+                    <div style={{ fontSize: '17px', fontWeight: 700, color: statusColor(l.status), letterSpacing: '0.06em' }}>
                       {l.status !== 'FUTURO' ? statusLabel(l.status) : ''}
                     </div>
                   </div>
@@ -309,37 +311,37 @@ export default function SetorTVPage() {
           {/* KPIs */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '14px', overflowY: 'auto' }}>
             <KpiBox label="Meta do Dia">
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-                <span style={{ fontSize: '32px', fontWeight: 700, color: '#F5A623' }}>{metaDia > 0 ? fmtNum(metaDia) : '—'}</span>
-                <span style={{ fontSize: '13px', color: '#666', textTransform: 'uppercase' }}>{unidade}</span>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                <span style={{ fontSize: '48px', fontWeight: 700, color: '#F5A623', lineHeight: 1 }}>{metaDia > 0 ? fmtNum(metaDia) : '—'}</span>
+                <span style={{ fontSize: '16px', color: '#666', textTransform: 'uppercase' }}>{unidade}</span>
               </div>
             </KpiBox>
             <KpiBox label="Produção Acumulada">
-              <div style={{ fontSize: '64px', fontWeight: 700, color: efColor, lineHeight: 1 }}>{fmtNum(totalProduzido)}</div>
+              <div style={{ fontSize: '88px', fontWeight: 700, color: efColor, lineHeight: 1 }}>{fmtNum(totalProduzido)}</div>
             </KpiBox>
             <KpiBox label="Eficiência" right={metaDia > 0 ? <Tag color={efColor}>{eficiencia >= 95 ? '● NO PLANO' : eficiencia >= 75 ? '! ATENÇÃO' : '● ABAIXO'}</Tag> : undefined}>
-              <div style={{ fontSize: '48px', fontWeight: 700, color: efColor, lineHeight: 1 }}>{metaDia > 0 ? fmtPct(eficiencia) : '—'}</div>
+              <div style={{ fontSize: '64px', fontWeight: 700, color: efColor, lineHeight: 1 }}>{metaDia > 0 ? fmtPct(eficiencia) : '—'}</div>
             </KpiBox>
-            <KpiBox label="Progresso do Dia" right={<span style={{ fontSize: '12px', color: efColor }}>{fmtPct(progresso)}</span>}>
-              <div style={{ height: '7px', background: '#2A2A2A', borderRadius: '4px', overflow: 'hidden', margin: '6px 0 4px' }}>
-                <div style={{ height: '100%', width: `${progresso}%`, background: efColor, borderRadius: '4px', transition: 'width 0.5s' }} />
+            <KpiBox label="Progresso do Dia" right={<span style={{ fontSize: '14px', color: efColor, fontWeight: 700 }}>{fmtPct(progresso)}</span>}>
+              <div style={{ height: '10px', background: '#2A2A2A', borderRadius: '5px', overflow: 'hidden', margin: '8px 0 6px' }}>
+                <div style={{ height: '100%', width: `${progresso}%`, background: efColor, borderRadius: '5px', transition: 'width 0.5s' }} />
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '10px', color: '#333' }}>0</span>
-                <span style={{ fontSize: '10px', color: '#333' }}>Meta: {fmtNum(metaDia)}</span>
+                <span style={{ fontSize: '11px', color: '#333' }}>0</span>
+                <span style={{ fontSize: '11px', color: '#444' }}>Meta: {fmtNum(metaDia)}</span>
               </div>
             </KpiBox>
             <KpiBox label="">
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
                 {[
-                  { label: 'Ritmo Atual', value: ritmoAtual > 0 ? fmtNum(Math.round(ritmoAtual)) : '—', sub: `${unidade}/h`, color: efColor },
-                  { label: 'Necessário', value: ritmoNecessario > 0 && minRestantes > 0 ? fmtNum(Math.round(ritmoNecessario)) : '—', sub: `${unidade}/h`, color: '#666' },
+                  { label: 'Ritmo Atual', value: ritmoAtual > 0 ? fmtNum(Math.round(ritmoAtual)) : '—', sub: `${unidade}/hora`, color: efColor },
+                  { label: 'Necessário', value: ritmoNecessario > 0 && minRestantes > 0 ? fmtNum(Math.round(ritmoNecessario)) : '—', sub: `${unidade}/hora`, color: '#666' },
                   { label: 'Projeção', value: projecao > 0 ? fmtNum(Math.round(projecao)) : '—', sub: `${unidade} final`, color: projecao >= metaDia ? '#4CAF50' : '#F44336' },
                 ].map(k => (
                   <div key={k.label}>
-                    <div style={{ fontSize: '10px', color: '#444', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '4px' }}>{k.label}</div>
-                    <div style={{ fontSize: '26px', fontWeight: 700, color: k.color, lineHeight: 1 }}>{k.value}</div>
-                    <div style={{ fontSize: '9px', color: '#333', marginTop: '2px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{k.sub}</div>
+                    <div style={{ fontSize: '11px', color: '#444', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '6px' }}>{k.label}</div>
+                    <div style={{ fontSize: '36px', fontWeight: 700, color: k.color, lineHeight: 1 }}>{k.value}</div>
+                    <div style={{ fontSize: '10px', color: '#333', marginTop: '4px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{k.sub}</div>
                   </div>
                 ))}
               </div>
