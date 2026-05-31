@@ -3,8 +3,9 @@ import './globals.css'
 import { AppShell } from '@/components/app-shell'
 
 export const metadata: Metadata = {
-  title: 'Apontamento de Produção',
+  title: 'RitmoProd',
   description: 'Sistema de apontamento de produção industrial',
+  icons: { icon: '/icon.svg', shortcut: '/icon.svg', apple: '/icon.svg' },
 }
 
 export const viewport: Viewport = {
