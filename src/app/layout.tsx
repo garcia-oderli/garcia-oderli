@@ -1,11 +1,16 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { AppShell } from '@/components/app-shell'
 
 export const metadata: Metadata = {
   title: 'Apontamento de Produção',
   description: 'Sistema de apontamento de produção industrial',
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=1',
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
 }
 
 export default function RootLayout({
