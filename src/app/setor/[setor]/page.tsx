@@ -135,11 +135,11 @@ export default function SetorTVPage() {
         .select('meta_dia, turno_inicio, turno_fim, intervalo_inicio, intervalo_fim, unidade')
         .ilike('setor', setor).eq('data', hoje).maybeSingle(),
       (supabase as any).from('apontamentos')
-        .select('quantidade_produzida, created_at, maquina_id, maquinas(setor, codigo, nome), funcionarios(setor, nome)')
+        .select('quantidade_produzida, created_at, maquina_id, maquinas(setor, codigo, descricao), funcionarios(setor, nome)')
         .gte('created_at', `${hoje}T00:00:00`)
         .lte('created_at', `${hoje}T23:59:59`),
       (supabase as any).from('maquinas')
-        .select('id, codigo, nome, setor')
+        .select('id, codigo, descricao, setor')
         .ilike('setor', setor)
         .order('codigo'),
     ])
@@ -194,7 +194,7 @@ export default function SetorTVPage() {
         const pct = metaPorMaq > 0 ? (produzido / metaPorMaq) * 100 : 100
         status = pct >= 95 ? 'OK' : pct >= 70 ? 'ATEN' : 'ABX'
       }
-      return { id: m.id, codigo: m.codigo, nome: m.nome, produzido, operador, ultima, status }
+      return { id: m.id, codigo: m.codigo, nome: m.descricao ?? '', produzido, operador, ultima, status }
     })
     setMaquinas(cards)
     setLoading(false)
