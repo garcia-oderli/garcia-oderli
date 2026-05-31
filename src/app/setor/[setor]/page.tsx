@@ -274,7 +274,7 @@ export default function SetorTVPage() {
 
       {/* Content */}
       {aba === 'geral' ? (
-        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 340px', overflow: 'hidden' }}>
+        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '70% 30%', overflow: 'hidden' }}>
           {/* Tabela hora a hora */}
           <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: '1px solid #2A2A2A' }}>
             {/* Table header */}
