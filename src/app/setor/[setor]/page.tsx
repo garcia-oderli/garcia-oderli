@@ -3,11 +3,11 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Maximize2, Pause, Play, Settings, ArrowLeft } from 'lucide-react'
+import { Maximize2, Pause, Play, Settings } from 'lucide-react'
 import Link from 'next/link'
 
 interface HoraLinha {
-  hora: string   // "05:00–06:00"
+  hora: string
   inicio: Date
   fim: Date
   meta_h: number
@@ -25,6 +25,16 @@ interface MetaSetor {
   unidade: string
 }
 
+interface MaquinaCard {
+  id: string
+  codigo: string
+  nome: string
+  produzido: number
+  operador: string | null
+  ultima: string | null
+  status: 'OK' | 'ATEN' | 'ABX' | 'PARADA'
+}
+
 function pad(n: number) { return String(n).padStart(2, '0') }
 function fmtHora(d: Date) { return `${pad(d.getHours())}:${pad(d.getMinutes())}` }
 function fmtNum(n: number) { return n.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) }
@@ -35,18 +45,19 @@ function hojeStr() {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
-function statusColor(s: HoraLinha['status']) {
+function statusColor(s: 'OK' | 'ATEN' | 'ABX' | 'FUTURO' | 'PARADA') {
   if (s === 'OK') return '#4CAF50'
   if (s === 'ATEN') return '#F5A623'
   if (s === 'ABX') return '#F44336'
-  return '#444'
+  if (s === 'PARADA') return '#444'
+  return '#333'
 }
 
 function statusLabel(s: HoraLinha['status']) {
   if (s === 'OK') return '✓ OK'
   if (s === 'ATEN') return '! ATEN'
   if (s === 'ABX') return '✕ ABX'
-  return '—'
+  return ''
 }
 
 function eficienciaColor(e: number) {
@@ -55,7 +66,6 @@ function eficienciaColor(e: number) {
   return '#F44336'
 }
 
-/** Next clock-aligned full hour (e.g. 12:12 → 13:00) */
 function nextClockHour(d: Date): Date {
   const n = new Date(d)
   if (n.getMinutes() === 0 && n.getSeconds() === 0) {
@@ -67,7 +77,6 @@ function nextClockHour(d: Date): Date {
   return n
 }
 
-/** Splits shift into clock-aligned buckets, skipping the lunch interval */
 function buildHoras(turnoInicio: string, turnoFim: string, hoje: string, intervaloInicio?: string | null, intervaloFim?: string | null): { inicio: Date; fim: Date }[] {
   const parse = (t: string) => { const [h, m] = t.split(':').map(Number); return new Date(`${hoje}T${pad(h)}:${pad(m)}:00`) }
   const intStart = intervaloInicio ? parse(intervaloInicio) : null
@@ -76,12 +85,7 @@ function buildHoras(turnoInicio: string, turnoFim: string, hoje: string, interva
   let cur = parse(turnoInicio)
   const end = parse(turnoFim)
   while (cur < end) {
-    // Skip over lunch interval
-    if (intStart && intEnd && cur >= intStart && cur < intEnd) {
-      cur = new Date(intEnd)
-      continue
-    }
-    // Next boundary: clock-aligned hour, interval start, or turno end
+    if (intStart && intEnd && cur >= intStart && cur < intEnd) { cur = new Date(intEnd); continue }
     let next = nextClockHour(cur)
     if (intStart && intEnd && cur < intStart && next > intStart) next = new Date(intStart)
     if (next > end) next = new Date(end)
@@ -91,19 +95,32 @@ function buildHoras(turnoInicio: string, turnoFim: string, hoje: string, interva
   return buckets
 }
 
+function formatRelative(iso: string | null) {
+  if (!iso) return '—'
+  const diff = Date.now() - new Date(iso).getTime()
+  const m = Math.floor(diff / 60000)
+  if (m < 1) return 'agora'
+  if (m < 60) return `${m}min atrás`
+  return `${Math.floor(m / 60)}h atrás`
+}
+
+type Aba = 'geral' | 'maquinas'
+
 export default function SetorTVPage() {
   const params = useParams()
   const setor = decodeURIComponent(params.setor as string)
 
+  const [aba, setAba] = useState<Aba>('geral')
   const [meta, setMeta] = useState<MetaSetor | null>(null)
   const [linhas, setLinhas] = useState<HoraLinha[]>([])
+  const [maquinas, setMaquinas] = useState<MaquinaCard[]>([])
   const [agora, setAgora] = useState(new Date())
   const [paused, setPaused] = useState(false)
   const [loading, setLoading] = useState(true)
   const [metaEditOpen, setMetaEditOpen] = useState(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const tbodyRef = useRef<HTMLDivElement>(null)
 
-  // Clock tick
   useEffect(() => {
     const t = setInterval(() => setAgora(new Date()), 1000)
     return () => clearInterval(t)
@@ -113,96 +130,94 @@ export default function SetorTVPage() {
     const supabase = createClient()
     const hoje = hojeStr()
 
-    const [metaRes, apRes] = await Promise.all([
-      (supabase as any).from('metas_setor').select('meta_dia, turno_inicio, turno_fim, unidade').eq('setor', setor).eq('data', hoje).maybeSingle(),
-      (supabase as any)
-        .from('apontamentos')
-        .select('quantidade_produzida, created_at, maquinas(setor), funcionarios(setor)')
+    const [metaRes, apRes, maqRes] = await Promise.all([
+      (supabase as any).from('metas_setor')
+        .select('meta_dia, turno_inicio, turno_fim, intervalo_inicio, intervalo_fim, unidade')
+        .eq('setor', setor).eq('data', hoje).maybeSingle(),
+      (supabase as any).from('apontamentos')
+        .select('quantidade_produzida, created_at, maquina_id, maquinas(setor, codigo, nome), funcionarios(setor, nome)')
         .gte('created_at', `${hoje}T00:00:00`)
         .lte('created_at', `${hoje}T23:59:59`),
+      (supabase as any).from('maquinas')
+        .select('id, codigo, nome, setor')
+        .eq('setor', setor)
+        .order('codigo'),
     ])
 
     const metaData: MetaSetor = metaRes.data ?? {
-      meta_dia: 0,
-      turno_inicio: '07:00',
-      turno_fim: '16:55',
-      intervalo_inicio: '11:00',
-      intervalo_fim: '12:12',
-      unidade: 'pç',
+      meta_dia: 0, turno_inicio: '07:00', turno_fim: '16:55',
+      intervalo_inicio: '11:00', intervalo_fim: '12:12', unidade: 'pç',
     }
     setMeta(metaData)
 
-    const apontamentos: any[] = (apRes.data ?? []).filter((a: any) =>
+    const todosAp: any[] = (apRes.data ?? []).filter((a: any) =>
       a.maquinas?.setor === setor || a.funcionarios?.setor === setor
     )
 
+    // --- Hora a hora (geral) ---
     const buckets = buildHoras(metaData.turno_inicio, metaData.turno_fim, hoje, metaData.intervalo_inicio, metaData.intervalo_fim)
     const totalMinutos = buckets.reduce((s, b) => s + (b.fim.getTime() - b.inicio.getTime()) / 60000, 0)
-
     let acum = 0
+    const now = new Date()
     const rows: HoraLinha[] = buckets.map(b => {
       const minutos = (b.fim.getTime() - b.inicio.getTime()) / 60000
       const metaH = totalMinutos > 0 ? (metaData.meta_dia * minutos) / totalMinutos : 0
-      const realizado = apontamentos
-        .filter(a => {
-          const t = new Date(a.created_at)
-          return t >= b.inicio && t < b.fim
-        })
+      const realizado = todosAp
+        .filter(a => { const t = new Date(a.created_at); return t >= b.inicio && t < b.fim })
         .reduce((s: number, a: any) => s + (a.quantidade_produzida ?? 0), 0)
       acum += realizado
-
-      const now = new Date()
       let status: HoraLinha['status'] = 'FUTURO'
       if (now >= b.fim) {
-        // Hora já terminou
         status = realizado >= metaH ? 'OK' : realizado >= metaH * 0.7 ? 'ATEN' : 'ABX'
       } else if (now >= b.inicio) {
-        // Hora em andamento
-        const fracDecorrida = (now.getTime() - b.inicio.getTime()) / (b.fim.getTime() - b.inicio.getTime())
-        const metaParcial = metaH * fracDecorrida
-        if (fracDecorrida > 0.5) {
+        const frac = (now.getTime() - b.inicio.getTime()) / (b.fim.getTime() - b.inicio.getTime())
+        if (frac > 0.5) {
+          const metaParcial = metaH * frac
           status = realizado >= metaParcial ? 'OK' : realizado >= metaParcial * 0.7 ? 'ATEN' : 'ABX'
-        } else {
-          status = 'FUTURO'
         }
       }
-
-      return {
-        hora: `${fmtHora(b.inicio)}–${fmtHora(b.fim)}`,
-        inicio: b.inicio,
-        fim: b.fim,
-        meta_h: Math.round(metaH),
-        realizado,
-        acumulado: acum,
-        status,
-      }
+      return { hora: `${fmtHora(b.inicio)}–${fmtHora(b.fim)}`, inicio: b.inicio, fim: b.fim, meta_h: Math.round(metaH), realizado, acumulado: acum, status }
     })
-
     setLinhas(rows)
+
+    // --- Cards por máquina ---
+    const todasMaq: any[] = maqRes.data ?? []
+    const cards: MaquinaCard[] = todasMaq.map(m => {
+      const aps = todosAp.filter(a => a.maquina_id === m.id)
+      const produzido = aps.reduce((s: number, a: any) => s + (a.quantidade_produzida ?? 0), 0)
+      const ultima = aps.length > 0 ? aps.reduce((max: string, a: any) => a.created_at > max ? a.created_at : max, aps[0].created_at) : null
+      const operador = aps.length > 0 ? (aps[aps.length - 1].funcionarios?.nome ?? null) : null
+      const metaPorMaq = metaData.meta_dia > 0 && todasMaq.length > 0 ? metaData.meta_dia / todasMaq.length : 0
+      let status: MaquinaCard['status'] = 'PARADA'
+      if (produzido > 0) {
+        const pct = metaPorMaq > 0 ? (produzido / metaPorMaq) * 100 : 100
+        status = pct >= 95 ? 'OK' : pct >= 70 ? 'ATEN' : 'ABX'
+      }
+      return { id: m.id, codigo: m.codigo, nome: m.nome, produzido, operador, ultima, status }
+    })
+    setMaquinas(cards)
     setLoading(false)
   }, [setor])
 
-  useEffect(() => {
-    fetchData()
-  }, [fetchData])
+  useEffect(() => { fetchData() }, [fetchData])
 
-  // Auto-refresh
   useEffect(() => {
-    if (paused) {
-      if (timerRef.current) clearInterval(timerRef.current)
-      return
-    }
+    if (paused) { if (timerRef.current) clearInterval(timerRef.current); return }
     timerRef.current = setInterval(fetchData, 60000)
     return () => { if (timerRef.current) clearInterval(timerRef.current) }
   }, [paused, fetchData])
 
-  // Derived KPIs
+  useEffect(() => {
+    if (!tbodyRef.current) return
+    const active = tbodyRef.current.querySelector('[data-active="true"]') as HTMLElement
+    if (active) active.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [linhas])
+
   const totalProduzido = linhas.reduce((s, l) => s + l.realizado, 0)
   const metaDia = meta?.meta_dia ?? 0
   const unidade = meta?.unidade ?? 'pç'
   const eficiencia = metaDia > 0 ? (totalProduzido / metaDia) * 100 : 0
-
-  // Rhythm
+  const efColor = eficienciaColor(eficiencia)
   const now = agora
   const turnoInicio = meta ? new Date(`${hojeStr()}T${meta.turno_inicio}:00`) : null
   const turnoFim = meta ? new Date(`${hojeStr()}T${meta.turno_fim}:00`) : null
@@ -210,195 +225,216 @@ export default function SetorTVPage() {
   const minRestantes = turnoFim ? Math.max(0, (turnoFim.getTime() - now.getTime()) / 60000) : 0
   const ritmoAtual = minDecorridos > 0 ? (totalProduzido / minDecorridos) * 60 : 0
   const ritmoNecessario = minRestantes > 0 ? ((metaDia - totalProduzido) / minRestantes) * 60 : 0
-  const projecao = turnoFim && turnoInicio
-    ? ritmoAtual * ((turnoFim.getTime() - turnoInicio.getTime()) / 3600000)
-    : totalProduzido
+  const projecao = turnoFim && turnoInicio ? ritmoAtual * ((turnoFim.getTime() - turnoInicio.getTime()) / 3600000) : totalProduzido
   const progresso = metaDia > 0 ? Math.min((totalProduzido / metaDia) * 100, 100) : 0
-  const efColor = eficienciaColor(eficiencia)
 
-  // Scroll to current hour row
-  const tbodyRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (!tbodyRef.current) return
-    const active = tbodyRef.current.querySelector('[data-active="true"]') as HTMLElement
-    if (active) active.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  }, [linhas])
-
-  if (loading) return <div style={{ color: '#888', padding: '60px', textAlign: 'center', background: '#111', minHeight: '100vh' }}>Carregando...</div>
+  if (loading) return <div style={{ color: '#888', padding: '60px', textAlign: 'center', background: '#111', height: '100vh' }}>Carregando...</div>
 
   return (
-    <div style={{ background: '#111', minHeight: '100vh', color: '#F5F5F5', fontFamily: 'Barlow Condensed, sans-serif', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ background: '#111', height: '100vh', color: '#F5F5F5', fontFamily: 'Barlow Condensed, sans-serif', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
       {/* Top bar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 20px', background: '#1C1C1C', borderBottom: '1px solid #2A2A2A', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <Link href="/setor" style={{ color: '#555', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}>
-            <ArrowLeft size={13} /> Setores
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <Link href="/setor" style={{ color: '#555', textDecoration: 'none', fontSize: '12px', letterSpacing: '0.06em' }}>
+            ← SETORES
           </Link>
-          <div>
-            <div style={{ fontSize: '11px', color: '#555', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-              {setor}
-            </div>
+          <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#F5F5F5' }}>
+            {setor}
+          </h1>
+          {/* Abas */}
+          <div style={{ display: 'flex', background: '#111', border: '1px solid #2A2A2A', borderRadius: '4px', overflow: 'hidden' }}>
+            {(['geral', 'maquinas'] as Aba[]).map(a => (
+              <button key={a} onClick={() => setAba(a)}
+                style={{ padding: '5px 16px', fontSize: '12px', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', cursor: 'pointer', background: aba === a ? '#F5A623' : 'transparent', color: aba === a ? '#111' : '#666' }}>
+                {a === 'geral' ? 'GERAL' : `MÁQUINAS (${maquinas.length})`}
+              </button>
+            ))}
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <button onClick={() => setMetaEditOpen(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'transparent', border: '1px solid #2A2A2A', borderRadius: '4px', color: '#888', padding: '5px 10px', cursor: 'pointer', fontSize: '12px', letterSpacing: '0.05em' }}>
-            <Settings size={12} /> Meta
+            style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'transparent', border: '1px solid #2A2A2A', borderRadius: '4px', color: '#666', padding: '5px 10px', cursor: 'pointer', fontSize: '11px', letterSpacing: '0.05em' }}>
+            <Settings size={11} /> META
           </button>
           <button onClick={() => setPaused(p => !p)}
-            style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'transparent', border: '1px solid #2A2A2A', borderRadius: '4px', color: paused ? '#F5A623' : '#888', padding: '5px 10px', cursor: 'pointer', fontSize: '12px' }}>
-            {paused ? <Play size={12} /> : <Pause size={12} />}
+            style={{ background: 'transparent', border: '1px solid #2A2A2A', borderRadius: '4px', color: paused ? '#F5A623' : '#666', padding: '5px 8px', cursor: 'pointer' }}>
+            {paused ? <Play size={11} /> : <Pause size={11} />}
           </button>
           <button onClick={() => document.documentElement.requestFullscreen?.()}
-            style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'transparent', border: '1px solid #2A2A2A', borderRadius: '4px', color: '#888', padding: '5px 10px', cursor: 'pointer', fontSize: '12px' }}>
-            <Maximize2 size={12} />
+            style={{ background: 'transparent', border: '1px solid #2A2A2A', borderRadius: '4px', color: '#666', padding: '5px 8px', cursor: 'pointer' }}>
+            <Maximize2 size={11} />
           </button>
-          <div style={{ fontSize: '28px', fontWeight: 700, color: '#F5A623', letterSpacing: '0.05em', minWidth: '100px', textAlign: 'right' }}>
+          <div style={{ fontSize: '26px', fontWeight: 700, color: '#F5A623', letterSpacing: '0.05em', minWidth: '95px', textAlign: 'right' }}>
             {pad(agora.getHours())}:{pad(agora.getMinutes())}:{pad(agora.getSeconds())}
           </div>
         </div>
       </div>
 
-      {/* Sector title */}
-      <div style={{ padding: '16px 20px 8px', flexShrink: 0 }}>
-        <h1 style={{ margin: 0, fontSize: '42px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#F5F5F5', lineHeight: 1 }}>
-          {setor}
-        </h1>
-        <div style={{ fontSize: '12px', color: '#555', marginTop: '4px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-          — Hora a Hora — Turno Atual
-        </div>
-      </div>
-
-      {/* Main content: table + KPIs */}
-      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 380px', gap: 0, overflow: 'hidden', minHeight: 0 }}>
-
-        {/* Table */}
-        <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: '1px solid #2A2A2A' }}>
-          {/* Header */}
-          <div style={{ display: 'grid', gridTemplateColumns: '120px 80px 100px 100px 120px', padding: '8px 20px', background: '#1A1A1A', borderBottom: '1px solid #2A2A2A', flexShrink: 0 }}>
-            {['HORA', `META/${unidade.toUpperCase()}`, 'REALIZADO', 'ACUM.', 'STATUS'].map(h => (
-              <div key={h} style={{ fontSize: '11px', color: '#555', letterSpacing: '0.1em' }}>{h}</div>
-            ))}
-          </div>
-          {/* Rows */}
-          <div ref={tbodyRef} style={{ flex: 1, overflowY: 'auto' }}>
-            {linhas.length === 0 ? (
-              <div style={{ padding: '40px', color: '#555', textAlign: 'center' }}>
-                Configure a meta do turno clicando em "Meta"
-              </div>
-            ) : linhas.map((l, i) => {
-              const isAtivo = now >= l.inicio && now < l.fim
-              const isPast = now >= l.fim
-              return (
-                <div key={i} data-active={isAtivo ? 'true' : 'false'}
-                  style={{
-                    display: 'grid', gridTemplateColumns: '120px 80px 100px 100px 120px',
-                    padding: '10px 20px',
-                    background: isAtivo ? '#1A2A1A' : 'transparent',
-                    borderBottom: '1px solid #1E1E1E',
-                    borderLeft: isAtivo ? '3px solid #4CAF50' : '3px solid transparent',
-                  }}>
-                  <div style={{ fontSize: '15px', color: isAtivo ? '#F5F5F5' : isPast ? '#888' : '#444', fontWeight: isAtivo ? 700 : 400 }}>
-                    {l.hora}
-                  </div>
-                  <div style={{ fontSize: '15px', color: '#555' }}>{l.meta_h > 0 ? fmtNum(l.meta_h) : '—'}</div>
-                  <div style={{ fontSize: '18px', fontWeight: 700, color: isPast || isAtivo ? statusColor(l.status) : '#333' }}>
-                    {l.realizado > 0 ? fmtNum(l.realizado) : isPast ? '0' : '—'}
-                  </div>
-                  <div style={{ fontSize: '18px', fontWeight: 700, color: isPast || isAtivo ? (l.status === 'ABX' ? '#F44336' : '#F5F5F5') : '#333' }}>
-                    {l.acumulado > 0 ? fmtNum(l.acumulado) : '—'}
-                  </div>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: statusColor(l.status), letterSpacing: '0.05em' }}>
-                    {l.status !== 'FUTURO' ? statusLabel(l.status) : ''}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* KPI Panel */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 0, overflowY: 'auto', padding: '16px' }}>
-
-          {/* Meta do dia */}
-          <div style={{ background: '#1C1C1C', border: '1px solid #2A2A2A', borderRadius: '8px', padding: '14px 18px', marginBottom: '12px' }}>
-            <div style={{ fontSize: '11px', color: '#555', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '6px' }}>Meta do Dia</div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-              <span style={{ fontSize: '36px', fontWeight: 700, color: '#F5A623' }}>{metaDia > 0 ? fmtNum(metaDia) : '—'}</span>
-              <span style={{ fontSize: '14px', color: '#888', textTransform: 'uppercase' }}>{unidade}</span>
-            </div>
-          </div>
-
-          {/* Produção acumulada */}
-          <div style={{ background: '#1C1C1C', border: '1px solid #2A2A2A', borderRadius: '8px', padding: '14px 18px', marginBottom: '12px' }}>
-            <div style={{ fontSize: '11px', color: '#555', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '6px' }}>Produção Acumulada</div>
-            <div style={{ fontSize: '72px', fontWeight: 700, color: efColor, lineHeight: 1 }}>
-              {fmtNum(totalProduzido)}
-            </div>
-          </div>
-
-          {/* Eficiência */}
-          <div style={{ background: '#1C1C1C', border: '1px solid #2A2A2A', borderRadius: '8px', padding: '14px 18px', marginBottom: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-              <div style={{ fontSize: '11px', color: '#555', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Eficiência</div>
-              {metaDia > 0 && (
-                <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.05em', padding: '2px 8px', borderRadius: '4px', background: efColor + '22', color: efColor }}>
-                  {eficiencia >= 95 ? '● NO PLANO' : eficiencia >= 75 ? '! ATENÇÃO' : '● ABAIXO DO PLANEJADO'}
-                </div>
-              )}
-            </div>
-            <div style={{ fontSize: '56px', fontWeight: 700, color: efColor, lineHeight: 1 }}>
-              {metaDia > 0 ? fmtPct(eficiencia) : '—'}
-            </div>
-          </div>
-
-          {/* Progresso */}
-          <div style={{ background: '#1C1C1C', border: '1px solid #2A2A2A', borderRadius: '8px', padding: '14px 18px', marginBottom: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <div style={{ fontSize: '11px', color: '#555', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Progresso do Dia</div>
-              <div style={{ fontSize: '12px', color: efColor }}>{fmtPct(progresso)}</div>
-            </div>
-            <div style={{ height: '8px', background: '#2A2A2A', borderRadius: '4px', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${progresso}%`, background: efColor, borderRadius: '4px', transition: 'width 0.5s ease' }} />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
-              <span style={{ fontSize: '10px', color: '#444' }}>0</span>
-              <span style={{ fontSize: '10px', color: '#444' }}>Meta: {fmtNum(metaDia)}</span>
-            </div>
-          </div>
-
-          {/* Ritmo */}
-          <div style={{ background: '#1C1C1C', border: '1px solid #2A2A2A', borderRadius: '8px', padding: '14px 18px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
-              {[
-                { label: 'Ritmo Atual', value: ritmoAtual > 0 ? fmtNum(Math.round(ritmoAtual)) : '—', sub: `${unidade}/HORA`, color: efColor },
-                { label: 'Necessário', value: ritmoNecessario > 0 && minRestantes > 0 ? fmtNum(Math.round(ritmoNecessario)) : '—', sub: `${unidade}/HORA`, color: '#888' },
-                { label: 'Projeção', value: projecao > 0 ? fmtNum(Math.round(projecao)) : '—', sub: `${unidade} FINAL`, color: projecao >= metaDia ? '#4CAF50' : '#F44336' },
-              ].map(k => (
-                <div key={k.label}>
-                  <div style={{ fontSize: '10px', color: '#555', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '4px' }}>{k.label}</div>
-                  <div style={{ fontSize: '28px', fontWeight: 700, color: k.color, lineHeight: 1 }}>{k.value}</div>
-                  <div style={{ fontSize: '9px', color: '#444', marginTop: '2px', letterSpacing: '0.06em' }}>{k.sub}</div>
-                </div>
+      {/* Content */}
+      {aba === 'geral' ? (
+        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 340px', overflow: 'hidden' }}>
+          {/* Tabela hora a hora */}
+          <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: '1px solid #2A2A2A' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '130px 90px 110px 110px 130px', padding: '8px 20px', background: '#181818', borderBottom: '1px solid #222', flexShrink: 0 }}>
+              {['HORA', `META/${unidade.toUpperCase()}`, 'REALIZADO', 'ACUM.', 'STATUS'].map(h => (
+                <div key={h} style={{ fontSize: '10px', color: '#444', letterSpacing: '0.1em' }}>{h}</div>
               ))}
             </div>
+            <div ref={tbodyRef} style={{ flex: 1, overflowY: 'auto' }}>
+              {linhas.map((l, i) => {
+                const isAtivo = now >= l.inicio && now < l.fim
+                const isPast = now >= l.fim
+                return (
+                  <div key={i} data-active={isAtivo ? 'true' : 'false'}
+                    style={{ display: 'grid', gridTemplateColumns: '130px 90px 110px 110px 130px', padding: '11px 20px', background: isAtivo ? '#1A2A1A' : 'transparent', borderBottom: '1px solid #1A1A1A', borderLeft: isAtivo ? '3px solid #4CAF50' : '3px solid transparent' }}>
+                    <div style={{ fontSize: '15px', color: isAtivo ? '#F5F5F5' : isPast ? '#888' : '#3A3A3A', fontWeight: isAtivo ? 700 : 400 }}>{l.hora}</div>
+                    <div style={{ fontSize: '15px', color: '#444' }}>{l.meta_h > 0 ? fmtNum(l.meta_h) : '—'}</div>
+                    <div style={{ fontSize: '19px', fontWeight: 700, color: isPast || isAtivo ? statusColor(l.status) : '#2A2A2A' }}>
+                      {l.realizado > 0 ? fmtNum(l.realizado) : isPast ? '0' : '—'}
+                    </div>
+                    <div style={{ fontSize: '19px', fontWeight: 700, color: isPast || isAtivo ? (l.status === 'ABX' ? '#F44336' : '#F5F5F5') : '#2A2A2A' }}>
+                      {l.acumulado > 0 ? fmtNum(l.acumulado) : '—'}
+                    </div>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: statusColor(l.status), letterSpacing: '0.05em' }}>
+                      {l.status !== 'FUTURO' ? statusLabel(l.status) : ''}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* KPIs */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '14px', overflowY: 'auto' }}>
+            <KpiBox label="Meta do Dia">
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                <span style={{ fontSize: '32px', fontWeight: 700, color: '#F5A623' }}>{metaDia > 0 ? fmtNum(metaDia) : '—'}</span>
+                <span style={{ fontSize: '13px', color: '#666', textTransform: 'uppercase' }}>{unidade}</span>
+              </div>
+            </KpiBox>
+            <KpiBox label="Produção Acumulada">
+              <div style={{ fontSize: '64px', fontWeight: 700, color: efColor, lineHeight: 1 }}>{fmtNum(totalProduzido)}</div>
+            </KpiBox>
+            <KpiBox label="Eficiência" right={metaDia > 0 ? <Tag color={efColor}>{eficiencia >= 95 ? '● NO PLANO' : eficiencia >= 75 ? '! ATENÇÃO' : '● ABAIXO'}</Tag> : undefined}>
+              <div style={{ fontSize: '48px', fontWeight: 700, color: efColor, lineHeight: 1 }}>{metaDia > 0 ? fmtPct(eficiencia) : '—'}</div>
+            </KpiBox>
+            <KpiBox label="Progresso do Dia" right={<span style={{ fontSize: '12px', color: efColor }}>{fmtPct(progresso)}</span>}>
+              <div style={{ height: '7px', background: '#2A2A2A', borderRadius: '4px', overflow: 'hidden', margin: '6px 0 4px' }}>
+                <div style={{ height: '100%', width: `${progresso}%`, background: efColor, borderRadius: '4px', transition: 'width 0.5s' }} />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '10px', color: '#333' }}>0</span>
+                <span style={{ fontSize: '10px', color: '#333' }}>Meta: {fmtNum(metaDia)}</span>
+              </div>
+            </KpiBox>
+            <KpiBox label="">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
+                {[
+                  { label: 'Ritmo Atual', value: ritmoAtual > 0 ? fmtNum(Math.round(ritmoAtual)) : '—', sub: `${unidade}/h`, color: efColor },
+                  { label: 'Necessário', value: ritmoNecessario > 0 && minRestantes > 0 ? fmtNum(Math.round(ritmoNecessario)) : '—', sub: `${unidade}/h`, color: '#666' },
+                  { label: 'Projeção', value: projecao > 0 ? fmtNum(Math.round(projecao)) : '—', sub: `${unidade} final`, color: projecao >= metaDia ? '#4CAF50' : '#F44336' },
+                ].map(k => (
+                  <div key={k.label}>
+                    <div style={{ fontSize: '10px', color: '#444', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '4px' }}>{k.label}</div>
+                    <div style={{ fontSize: '26px', fontWeight: 700, color: k.color, lineHeight: 1 }}>{k.value}</div>
+                    <div style={{ fontSize: '9px', color: '#333', marginTop: '2px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{k.sub}</div>
+                  </div>
+                ))}
+              </div>
+            </KpiBox>
           </div>
         </div>
-      </div>
+      ) : (
+        /* Aba MÁQUINAS */
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+          {maquinas.length === 0 ? (
+            <div style={{ color: '#555', textAlign: 'center', padding: '60px', fontSize: '14px' }}>
+              Nenhuma máquina cadastrada para o setor "{setor}".<br />
+              <span style={{ fontSize: '12px', color: '#444' }}>Cadastre em Cadastros → Máquinas e defina o setor.</span>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
+              {maquinas.map(m => (
+                <MaquinaCardUI key={m.id} m={m} unidade={unidade} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Footer */}
-      <div style={{ padding: '6px 20px', background: '#1C1C1C', borderTop: '1px solid #2A2A2A', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-        <div style={{ fontSize: '11px', color: '#444', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-          FLUXO · DEFINE · RESULTADO
-        </div>
-        <div style={{ fontSize: '11px', color: '#444', letterSpacing: '0.08em' }}>▌ RITMOPROD</div>
+      <div style={{ padding: '5px 20px', background: '#1C1C1C', borderTop: '1px solid #1A1A1A', display: 'flex', justifyContent: 'space-between', flexShrink: 0 }}>
+        <span style={{ fontSize: '10px', color: '#333', letterSpacing: '0.1em', textTransform: 'uppercase' }}>FLUXO · DEFINE · RESULTADO</span>
+        <span style={{ fontSize: '10px', color: '#333', letterSpacing: '0.08em' }}>▌ RITMOPROD</span>
       </div>
 
-      {/* Meta edit modal */}
       {metaEditOpen && (
         <MetaModal setor={setor} onClose={() => setMetaEditOpen(false)} onSaved={() => { setMetaEditOpen(false); fetchData() }} />
       )}
+    </div>
+  )
+}
+
+function KpiBox({ label, children, right }: { label: string; children: React.ReactNode; right?: React.ReactNode }) {
+  return (
+    <div style={{ background: '#1C1C1C', border: '1px solid #222', borderRadius: '8px', padding: '12px 16px' }}>
+      {label && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+          <div style={{ fontSize: '10px', color: '#444', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{label}</div>
+          {right}
+        </div>
+      )}
+      {children}
+    </div>
+  )
+}
+
+function Tag({ color, children }: { color: string; children: React.ReactNode }) {
+  return (
+    <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.04em', padding: '2px 7px', borderRadius: '4px', background: color + '22', color }}>
+      {children}
+    </span>
+  )
+}
+
+function MaquinaCardUI({ m, unidade }: { m: MaquinaCard; unidade: string }) {
+  const sc = statusColor(m.status)
+  const isAtivo = m.ultima !== null && (Date.now() - new Date(m.ultima).getTime()) < 3600000 * 2
+  return (
+    <div style={{ background: '#1C1C1C', border: `1px solid ${isAtivo ? '#3A3A3A' : '#222'}`, borderRadius: '10px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', position: 'relative', overflow: 'hidden' }}>
+      {/* Status strip */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: sc }} />
+
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <div>
+          <div style={{ fontSize: '20px', fontWeight: 700, color: '#F5F5F5', letterSpacing: '0.06em' }}>{m.codigo}</div>
+          <div style={{ fontSize: '11px', color: '#555', marginTop: '2px' }}>{m.nome}</div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+          {isAtivo && <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#4CAF50', display: 'inline-block', boxShadow: '0 0 6px #4CAF5099' }} />}
+          <span style={{ fontSize: '11px', fontWeight: 700, color: sc, letterSpacing: '0.04em' }}>
+            {m.status === 'PARADA' ? 'PARADA' : m.status}
+          </span>
+        </div>
+      </div>
+
+      <div>
+        <div style={{ fontSize: '10px', color: '#444', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '3px' }}>Produzido hoje</div>
+        <div style={{ fontSize: '32px', fontWeight: 700, color: m.produzido > 0 ? sc : '#333', lineHeight: 1 }}>
+          {fmtNum(m.produzido)}
+          <span style={{ fontSize: '12px', color: '#444', marginLeft: '4px', fontWeight: 400 }}>{unidade}</span>
+        </div>
+      </div>
+
+      <div style={{ borderTop: '1px solid #1E1E1E', paddingTop: '8px' }}>
+        <div style={{ fontSize: '11px', color: '#555' }}>
+          {m.operador ? <span style={{ color: '#888' }}>👤 {m.operador.split(' ')[0]}</span> : <span style={{ color: '#333' }}>Sem operador</span>}
+        </div>
+        <div style={{ fontSize: '10px', color: '#333', marginTop: '2px' }}>
+          {m.ultima ? formatRelative(m.ultima) : 'Sem atividade hoje'}
+        </div>
+      </div>
     </div>
   )
 }
@@ -430,66 +466,60 @@ function MetaModal({ setor, onClose, onSaved }: { setor: string; onClose: () => 
   const handleSave = async () => {
     setSaving(true)
     const supabase = createClient()
-    const hoje = hojeStr()
     await (supabase as any).from('metas_setor').upsert({
-      setor,
-      data: hoje,
+      setor, data: hojeStr(),
       meta_dia: parseFloat(metaDia) || 0,
-      turno_inicio: turnoInicio,
-      turno_fim: turnoFim,
-      intervalo_inicio: intervaloInicio || null,
-      intervalo_fim: intervaloFim || null,
+      turno_inicio: turnoInicio, turno_fim: turnoFim,
+      intervalo_inicio: intervaloInicio || null, intervalo_fim: intervaloFim || null,
       unidade,
     }, { onConflict: 'setor,data' })
     setSaving(false)
     onSaved()
   }
 
-  const inp = { background: '#111', border: '1px solid #2A2A2A', color: '#F5F5F5', borderRadius: '6px', padding: '8px 12px', fontSize: '14px', outline: 'none', width: '100%', boxSizing: 'border-box' as const }
+  const inp: React.CSSProperties = { background: '#111', border: '1px solid #2A2A2A', color: '#F5F5F5', borderRadius: '6px', padding: '8px 12px', fontSize: '14px', outline: 'none', width: '100%', boxSizing: 'border-box' }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
       <div style={{ background: '#1C1C1C', border: '1px solid #2A2A2A', borderRadius: '12px', padding: '28px', width: '360px', maxWidth: '90vw' }}>
-        <h2 style={{ margin: '0 0 20px', fontFamily: 'Barlow Condensed, sans-serif', fontSize: '20px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#F5A623' }}>
-          Meta do Turno — {setor}
+        <h2 style={{ margin: '0 0 20px', fontFamily: 'Barlow Condensed, sans-serif', fontSize: '18px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#F5A623' }}>
+          Meta — {setor}
         </h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div>
-            <label style={{ fontSize: '11px', color: '#888', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Meta do Dia</label>
-            <input type="number" value={metaDia} onChange={e => setMetaDia(e.target.value)} placeholder="ex: 2279" style={inp} />
+            <label style={{ fontSize: '11px', color: '#888', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: '5px' }}>Meta do Dia</label>
+            <input type="number" value={metaDia} onChange={e => setMetaDia(e.target.value)} placeholder="ex: 1500" style={inp} />
           </div>
           <div>
-            <label style={{ fontSize: '11px', color: '#888', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Unidade</label>
+            <label style={{ fontSize: '11px', color: '#888', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: '5px' }}>Unidade</label>
             <input type="text" value={unidade} onChange={e => setUnidade(e.target.value)} placeholder="pç, cx, m²..." style={inp} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             <div>
-              <label style={{ fontSize: '11px', color: '#888', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Início Turno</label>
+              <label style={{ fontSize: '11px', color: '#888', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: '5px' }}>Início Turno</label>
               <input type="time" value={turnoInicio} onChange={e => setTurnoInicio(e.target.value)} style={inp} />
             </div>
             <div>
-              <label style={{ fontSize: '11px', color: '#888', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Fim Turno</label>
+              <label style={{ fontSize: '11px', color: '#888', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: '5px' }}>Fim Turno</label>
               <input type="time" value={turnoFim} onChange={e => setTurnoFim(e.target.value)} style={inp} />
             </div>
           </div>
           <div style={{ borderTop: '1px solid #2A2A2A', paddingTop: '12px' }}>
-            <div style={{ fontSize: '11px', color: '#555', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '10px' }}>Intervalo (almoço)</div>
+            <div style={{ fontSize: '11px', color: '#444', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '8px' }}>Intervalo (almoço)</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <div>
-                <label style={{ fontSize: '11px', color: '#888', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Início</label>
+                <label style={{ fontSize: '11px', color: '#888', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: '5px' }}>Início</label>
                 <input type="time" value={intervaloInicio} onChange={e => setIntervaloInicio(e.target.value)} style={inp} />
               </div>
               <div>
-                <label style={{ fontSize: '11px', color: '#888', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Fim</label>
+                <label style={{ fontSize: '11px', color: '#888', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: '5px' }}>Fim</label>
                 <input type="time" value={intervaloFim} onChange={e => setIntervaloFim(e.target.value)} style={inp} />
               </div>
             </div>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '10px', marginTop: '24px' }}>
-          <button onClick={onClose} style={{ flex: 1, padding: '10px', background: '#2A2A2A', border: 'none', borderRadius: '6px', color: '#888', cursor: 'pointer', fontFamily: 'Barlow Condensed, sans-serif', fontSize: '14px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-            Cancelar
-          </button>
+        <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+          <button onClick={onClose} style={{ flex: 1, padding: '10px', background: '#2A2A2A', border: 'none', borderRadius: '6px', color: '#888', cursor: 'pointer', fontFamily: 'Barlow Condensed, sans-serif', fontSize: '14px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Cancelar</button>
           <button onClick={handleSave} disabled={saving} style={{ flex: 2, padding: '10px', background: '#F5A623', border: 'none', borderRadius: '6px', color: '#111', cursor: 'pointer', fontFamily: 'Barlow Condensed, sans-serif', fontSize: '14px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: saving ? 0.6 : 1 }}>
             {saving ? 'Salvando...' : 'Salvar Meta'}
           </button>
