@@ -247,7 +247,7 @@ export default function SetorTVPage() {
   if (loading) return <div style={{ color: '#888', padding: '60px', textAlign: 'center', background: '#111', height: '100vh' }}>Carregando...</div>
 
   return (
-    <div style={{ background: '#111', height: '100vh', color: '#F5F5F5', fontFamily: 'Barlow Condensed, sans-serif', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div style={{ background: '#111', height: isMobile ? '100%' : '100vh', color: '#F5F5F5', fontFamily: 'Barlow Condensed, sans-serif', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
       {/* Top bar */}
       <div style={{ background: '#1C1C1C', borderBottom: '1px solid #2A2A2A', flexShrink: 0 }}>
