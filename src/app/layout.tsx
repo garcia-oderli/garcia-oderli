@@ -5,7 +5,7 @@ import { AppShell } from '@/components/app-shell'
 export const metadata: Metadata = {
   title: 'RitmoProd',
   description: 'Sistema de apontamento de produção industrial',
-  icons: { icon: '/icon.svg', shortcut: '/icon.svg', apple: '/icon.svg' },
+  icons: { icon: [{ url: '/favicon.png', type: 'image/png' }], shortcut: '/favicon.png', apple: '/favicon.png' },
 }
 
 export const viewport: Viewport = {
