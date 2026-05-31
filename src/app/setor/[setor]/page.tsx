@@ -133,14 +133,14 @@ export default function SetorTVPage() {
     const [metaRes, apRes, maqRes] = await Promise.all([
       (supabase as any).from('metas_setor')
         .select('meta_dia, turno_inicio, turno_fim, intervalo_inicio, intervalo_fim, unidade')
-        .eq('setor', setor).eq('data', hoje).maybeSingle(),
+        .ilike('setor', setor).eq('data', hoje).maybeSingle(),
       (supabase as any).from('apontamentos')
         .select('quantidade_produzida, created_at, maquina_id, maquinas(setor, codigo, nome), funcionarios(setor, nome)')
         .gte('created_at', `${hoje}T00:00:00`)
         .lte('created_at', `${hoje}T23:59:59`),
       (supabase as any).from('maquinas')
         .select('id, codigo, nome, setor')
-        .eq('setor', setor)
+        .ilike('setor', setor)
         .order('codigo'),
     ])
 
@@ -150,8 +150,9 @@ export default function SetorTVPage() {
     }
     setMeta(metaData)
 
+    const setorLower = setor.toLowerCase()
     const todosAp: any[] = (apRes.data ?? []).filter((a: any) =>
-      a.maquinas?.setor === setor || a.funcionarios?.setor === setor
+      a.maquinas?.setor?.toLowerCase() === setorLower || a.funcionarios?.setor?.toLowerCase() === setorLower
     )
 
     // --- Hora a hora (geral) ---
