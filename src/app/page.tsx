@@ -351,7 +351,7 @@ export default function DashboardPage() {
       {/* Turno filter */}
       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
         <span style={{ fontSize: '11px', color: '#888888', fontFamily: 'Barlow Condensed, sans-serif', letterSpacing: '0.1em', textTransform: 'uppercase', marginRight: '4px' }}>Turno:</span>
-        {(['TODOS', 'MANHA', 'TARDE', 'NOITE'] as const).map((t) => (
+        {(['TODOS', 'MANHA', 'TARDE'] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTurnoFilter(t)}
@@ -371,7 +371,7 @@ export default function DashboardPage() {
               transition: 'all 0.15s',
             }}
           >
-            {t === 'TODOS' ? 'Todos' : t === 'MANHA' ? 'Manhã' : t === 'TARDE' ? 'Tarde' : 'Noite'}
+            {t === 'TODOS' ? 'Todos' : t === 'MANHA' ? 'Manhã' : 'Tarde'}
           </button>
         ))}
       </div>

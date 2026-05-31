@@ -35,10 +35,14 @@ interface Props {
 }
 
 const turnoOptions: { value: TurnoEnum; label: string }[] = [
-  { value: 'MANHA', label: 'Manhã (06h - 14h)' },
-  { value: 'TARDE', label: 'Tarde (14h - 22h)' },
-  { value: 'NOITE', label: 'Noite (22h - 06h)' },
+  { value: 'MANHA', label: 'Manhã (07h - 11h)' },
+  { value: 'TARDE', label: 'Tarde (12h - 17h)' },
 ]
+
+function detectarTurno(): TurnoEnum {
+  const h = new Date().getHours()
+  return h >= 7 && h < 12 ? 'MANHA' : 'TARDE'
+}
 
 const sectionTitle = (text: string) => (
   <h3 style={{
@@ -73,7 +77,7 @@ export function NovoApontamentoForm({ ordens, funcionarios, maquinas }: Props) {
   const [ordemId, setOrdemId] = useState('')
   const [funcionarioId, setFuncionarioId] = useState('')
   const [maquinaId, setMaquinaId] = useState('')
-  const [turno, setTurno] = useState<TurnoEnum | ''>('')
+  const [turno, setTurno] = useState<TurnoEnum | ''>(detectarTurno)
   const [qtdProduzida, setQtdProduzida] = useState('')
   const [qtdRefugo, setQtdRefugo] = useState('0')
   const [qtdRetrabalho, setQtdRetrabalho] = useState('0')
