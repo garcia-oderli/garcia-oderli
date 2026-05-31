@@ -55,7 +55,19 @@ function eficienciaColor(e: number) {
   return '#F44336'
 }
 
-/** Splits shift into 1-hour buckets, skipping the lunch interval */
+/** Next clock-aligned full hour (e.g. 12:12 → 13:00) */
+function nextClockHour(d: Date): Date {
+  const n = new Date(d)
+  if (n.getMinutes() === 0 && n.getSeconds() === 0) {
+    n.setHours(n.getHours() + 1)
+  } else {
+    n.setMinutes(0, 0, 0)
+    n.setHours(n.getHours() + 1)
+  }
+  return n
+}
+
+/** Splits shift into clock-aligned buckets, skipping the lunch interval */
 function buildHoras(turnoInicio: string, turnoFim: string, hoje: string, intervaloInicio?: string | null, intervaloFim?: string | null): { inicio: Date; fim: Date }[] {
   const parse = (t: string) => { const [h, m] = t.split(':').map(Number); return new Date(`${hoje}T${pad(h)}:${pad(m)}:00`) }
   const intStart = intervaloInicio ? parse(intervaloInicio) : null
@@ -69,9 +81,10 @@ function buildHoras(turnoInicio: string, turnoFim: string, hoje: string, interva
       cur = new Date(intEnd)
       continue
     }
-    let next = new Date(Math.min(cur.getTime() + 3600000, end.getTime()))
-    // Clip bucket at interval start
+    // Next boundary: clock-aligned hour, interval start, or turno end
+    let next = nextClockHour(cur)
     if (intStart && intEnd && cur < intStart && next > intStart) next = new Date(intStart)
+    if (next > end) next = new Date(end)
     buckets.push({ inicio: new Date(cur), fim: new Date(next) })
     cur = next
   }
@@ -112,7 +125,7 @@ export default function SetorTVPage() {
     const metaData: MetaSetor = metaRes.data ?? {
       meta_dia: 0,
       turno_inicio: '07:00',
-      turno_fim: '17:00',
+      turno_fim: '16:55',
       intervalo_inicio: '11:00',
       intervalo_fim: '12:12',
       unidade: 'pç',
@@ -393,7 +406,7 @@ export default function SetorTVPage() {
 function MetaModal({ setor, onClose, onSaved }: { setor: string; onClose: () => void; onSaved: () => void }) {
   const [metaDia, setMetaDia] = useState('')
   const [turnoInicio, setTurnoInicio] = useState('07:00')
-  const [turnoFim, setTurnoFim] = useState('17:00')
+  const [turnoFim, setTurnoFim] = useState('16:55')
   const [intervaloInicio, setIntervaloInicio] = useState('11:00')
   const [intervaloFim, setIntervaloFim] = useState('12:12')
   const [unidade, setUnidade] = useState('pç')
