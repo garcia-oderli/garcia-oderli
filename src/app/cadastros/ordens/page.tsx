@@ -61,12 +61,17 @@ export default function OrdensPage() {
     e.preventDefault()
     setError(null)
     setSuccess(false)
-    setSubmitting(true)
     const formData = new FormData(e.currentTarget)
+    const produto_id = formData.get('produto_id') as string
+    if (!produto_id) {
+      setError('Selecione um produto antes de salvar.')
+      return
+    }
+    setSubmitting(true)
     const supabase = createClient()
     const { error: dbError } = await (supabase.from('ordens_producao') as any).insert({
       numero: formData.get('numero') as string,
-      produto_id: formData.get('produto_id') as string,
+      produto_id,
       quantidade_planejada: Number(formData.get('quantidade_planejada')),
       data_prevista: formData.get('data_prevista') as string,
       status: (formData.get('status') as string) || 'ABERTA',
