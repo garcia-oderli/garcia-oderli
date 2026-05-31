@@ -1,32 +1,26 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
 import { Navbar } from '@/components/navbar'
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const [isMobile, setIsMobile] = useState(false)
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 640)
-    check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
-
-  // TV panel hides navbar only on desktop (fullscreen mode)
   const isTvPanel = /^\/setor\/.+/.test(pathname)
 
-  if (isTvPanel && !isMobile) {
-    return <>{children}</>
-  }
-
-  if (isTvPanel && isMobile) {
+  if (isTvPanel) {
     return (
       <>
-        <Navbar />
-        <div style={{ height: 'calc(100vh - 52px)', overflow: 'hidden' }}>{children}</div>
+        {/* On mobile (≤768px) show navbar; on desktop hide it for fullscreen TV mode */}
+        <style>{`
+          .tv-navbar { display: none; }
+          .tv-content { height: 100vh; overflow: hidden; }
+          @media (max-width: 768px) {
+            .tv-navbar { display: block; }
+            .tv-content { height: calc(100vh - 52px); }
+          }
+        `}</style>
+        <div className="tv-navbar"><Navbar /></div>
+        <div className="tv-content">{children}</div>
       </>
     )
   }

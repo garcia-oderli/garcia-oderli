@@ -3,20 +3,12 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { ChevronDown, Menu, X, Zap, Plus, LayoutDashboard } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 
 export function Navbar() {
   const pathname = usePathname()
   const [cadastrosOpen, setCadastrosOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 769)
-    check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
 
   const cadastrosLinks = [
     { href: '/cadastros/produtos', label: 'Produtos' },
@@ -60,7 +52,7 @@ export function Navbar() {
           </Link>
 
           {/* Desktop nav */}
-          <nav style={{ display: isMobile ? 'none' : 'flex', alignItems: 'center', gap: '4px' }}>
+          <nav className="nav-desktop" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <Link href="/" style={linkStyle(pathname === '/')}>Dashboard</Link>
             <Link href="/apontamentos" style={linkStyle(pathname === '/apontamentos')}>Apontamentos</Link>
             <Link href="/setor" style={{ ...linkStyle(pathname === '/setor'), display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -93,7 +85,7 @@ export function Navbar() {
           </nav>
 
           {/* Mobile: botões rápidos + hamburguer */}
-          <div style={{ display: isMobile ? 'flex' : 'none', alignItems: 'center', gap: '8px' }}>
+          <div className="nav-mobile" style={{ display: 'none', alignItems: 'center', gap: '8px' }}>
             <Link href="/r" style={{ padding: '7px 12px', fontSize: '13px', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', background: 'transparent', border: '1px solid #F5A623', color: '#F5A623', textDecoration: 'none', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
               <Zap size={13} /> Rápido
             </Link>
@@ -108,7 +100,7 @@ export function Navbar() {
       </div>
 
       {/* Mobile menu */}
-      {mobileOpen && isMobile && (
+      {mobileOpen && (
         <div style={{ background: '#1C1C1C', borderTop: '1px solid #2A2A2A', padding: '8px 16px 16px' }}>
           <Link href="/" style={linkStyle(pathname === '/')} onClick={() => setMobileOpen(false)}>Dashboard</Link>
           <Link href="/apontamentos" style={linkStyle(pathname === '/apontamentos')} onClick={() => setMobileOpen(false)}>Apontamentos</Link>
@@ -125,6 +117,12 @@ export function Navbar() {
         </div>
       )}
 
+      <style>{`
+        @media (max-width: 768px) {
+          .nav-desktop { display: none !important; }
+          .nav-mobile { display: flex !important; }
+        }
+      `}</style>
     </header>
   )
 }
