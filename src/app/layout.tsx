@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
-import { Navbar } from '@/components/navbar'
+import { AppShell } from '@/components/app-shell'
 
 export const metadata: Metadata = {
   title: 'Apontamento de Produção',
@@ -16,8 +16,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className="h-full" style={{ background: '#111111' }}>
       <body className="min-h-full antialiased" style={{ background: '#111111', color: '#F5F5F5' }}>
-        <Navbar />
-        <main style={{ maxWidth: '1280px', margin: '0 auto', padding: '16px', boxSizing: 'border-box' }}>{children}</main>
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   )
