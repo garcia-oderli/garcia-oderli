@@ -95,9 +95,9 @@ export default function OrdensPage() {
     const fd = new FormData()
     fd.append('file', file)
     fd.append('debug', '1')
-    // Warn about large files before sending
-    if (file.size > 5 * 1024 * 1024) {
-      setError(`Arquivo muito grande (${(file.size / 1024 / 1024).toFixed(1)} MB). O limite é 5 MB. Tente reduzir o PDF.`)
+    // Warn about excessively large files
+    if (file.size > 20 * 1024 * 1024) {
+      setError(`Arquivo muito grande (${(file.size / 1024 / 1024).toFixed(1)} MB). O limite é 20 MB.`)
       setPdfParsing(false)
       return
     }
