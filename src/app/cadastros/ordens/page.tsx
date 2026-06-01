@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { ClipboardList, Plus, Pencil, Trash2, Check, X, Lock, ChevronDown, ChevronRight, Wrench } from 'lucide-react'
+import { ClipboardList, Plus, Pencil, Trash2, Check, X, Lock, ChevronDown, ChevronRight, Wrench, Upload, FileText, AlertTriangle } from 'lucide-react'
 import type { StatusOrdem } from '@/types/database'
 
 const statusColors: Record<StatusOrdem, string> = {
@@ -80,6 +80,70 @@ export default function OrdensPage() {
   // Op modal state
   const [opModal, setOpModal] = useState<{ ordemId: string; ordemNum: string; op: Omit<Operacao, 'id' | 'ordem_id'> | null; editId: string | null } | null>(null)
   const [opSaving, setOpSaving] = useState(false)
+
+  // PDF import state
+  const [pdfParsing, setPdfParsing] = useState(false)
+  const [pdfPreview, setPdfPreview] = useState<any | null>(null)
+  const [pdfImporting, setPdfImporting] = useState(false)
+  const pdfInputRef = useRef<HTMLInputElement>(null)
+
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setPdfParsing(true)
+    setPdfPreview(null)
+    const fd = new FormData()
+    fd.append('file', file)
+    try {
+      const res = await fetch('/api/parse-op', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (data.error) { setError(data.error); setPdfParsing(false); return }
+      setPdfPreview(data)
+    } catch {
+      setError('Erro ao ler o PDF.')
+    }
+    setPdfParsing(false)
+    if (pdfInputRef.current) pdfInputRef.current.value = ''
+  }
+
+  const importarPdf = async () => {
+    if (!pdfPreview) return
+    setPdfImporting(true)
+    const supabase = createClient()
+
+    // Tenta achar produto pelo código
+    let produto_id: string | null = null
+    if (pdfPreview.produto_codigo) {
+      const { data: prods } = await (supabase as any)
+        .from('produtos').select('id').ilike('codigo', pdfPreview.produto_codigo).limit(1)
+      if (prods?.length) produto_id = prods[0].id
+    }
+
+    const { data: ordemData, error: ordemErr } = await (supabase as any)
+      .from('ordens_producao').insert({
+        numero: pdfPreview.numero ?? 'IMPORTADA',
+        lote: pdfPreview.lote ?? null,
+        data_emissao: pdfPreview.data_emissao ?? null,
+        produto_id: produto_id ?? null,
+        quantidade_planejada: pdfPreview.quantidade_planejada ?? 0,
+        data_prevista: pdfPreview.data_prevista ?? new Date().toISOString().slice(0, 10),
+        status: 'ABERTA',
+        observacao: pdfPreview.observacao ?? null,
+      }).select('id').single()
+
+    if (ordemErr) { setError(ordemErr.message); setPdfImporting(false); return }
+
+    if (pdfPreview.operacoes?.length > 0) {
+      await (supabase as any).from('ordens_operacoes').insert(
+        pdfPreview.operacoes.map((op: any) => ({ ...op, ordem_id: ordemData.id }))
+      )
+    }
+
+    setPdfPreview(null)
+    setPdfImporting(false)
+    showSuccess(`OF ${pdfPreview.numero} importada com ${pdfPreview.operacoes?.length ?? 0} operações!`)
+    fetchData()
+  }
 
   const fetchData = useCallback(async () => {
     const supabase = createClient()
@@ -255,6 +319,106 @@ export default function OrdensPage() {
 
       {error && <div style={{ background: '#2a1212', border: '1px solid #F44336', color: '#F44336', borderRadius: '6px', padding: '10px 14px', fontSize: '13px' }}>Erro: {error}</div>}
       {success && <div style={{ background: '#122a12', border: '1px solid #4CAF50', color: '#4CAF50', borderRadius: '6px', padding: '10px 14px', fontSize: '13px' }}>{success}</div>}
+
+      {/* PDF Import */}
+      <div style={{ background: '#1C1C1C', border: '1px solid #2A2A2A', borderRadius: '10px', padding: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+          <FileText size={16} style={{ color: '#4A9EDF' }} />
+          <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '15px', letterSpacing: '0.08em', color: '#4A9EDF' }}>IMPORTAR PDF DA OP</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: '#1A2A3A', border: '1px solid #2A4A6A', color: '#4A9EDF', borderRadius: '6px', cursor: 'pointer', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '13px', letterSpacing: '0.06em' }}>
+            <Upload size={14} />
+            {pdfParsing ? 'Lendo PDF...' : 'Selecionar PDF'}
+            <input ref={pdfInputRef} type="file" accept=".pdf" onChange={handlePdfUpload} style={{ display: 'none' }} disabled={pdfParsing} />
+          </label>
+          <span style={{ fontSize: '12px', color: '#444' }}>Selecione o PDF da Ordem de Produção (Patrimar)</span>
+        </div>
+
+        {/* Preview */}
+        {pdfPreview && (
+          <div style={{ marginTop: '16px', background: '#111', border: '1px solid #2A2A2A', borderRadius: '8px', padding: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+              <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '14px', color: '#F5A623', letterSpacing: '0.06em' }}>
+                PRÉVIA — REVISE ANTES DE IMPORTAR
+              </span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={importarPdf} disabled={pdfImporting}
+                  style={{ padding: '7px 16px', background: '#F5A623', border: 'none', borderRadius: '6px', color: '#111', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '13px', cursor: 'pointer', opacity: pdfImporting ? 0.6 : 1 }}>
+                  {pdfImporting ? 'Importando...' : '✓ Confirmar Importação'}
+                </button>
+                <button onClick={() => setPdfPreview(null)}
+                  style={{ padding: '7px 12px', background: '#2A2A2A', border: 'none', borderRadius: '6px', color: '#888', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}>
+                  Cancelar
+                </button>
+              </div>
+            </div>
+
+            {/* OF fields */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '10px', marginBottom: '14px' }}>
+              {[
+                { label: 'OF', value: pdfPreview.numero },
+                { label: 'Lote', value: pdfPreview.lote },
+                { label: 'Emissão', value: pdfPreview.data_emissao },
+                { label: 'Previsão', value: pdfPreview.data_prevista },
+                { label: 'Qtd. Planejada', value: pdfPreview.quantidade_planejada?.toLocaleString('pt-BR') },
+                { label: 'Observação', value: pdfPreview.observacao },
+              ].map(f => (
+                <div key={f.label}>
+                  <div style={{ fontSize: '10px', color: '#555', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '2px' }}>{f.label}</div>
+                  <div style={{ fontSize: '13px', color: f.value ? '#F5F5F5' : '#444', fontFamily: f.value ? undefined : 'inherit' }}>
+                    {f.value ?? <span style={{ color: '#444', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertTriangle size={11} /> não detectado</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Produto */}
+            <div style={{ marginBottom: '14px', padding: '10px 12px', background: '#1A1A1A', borderRadius: '6px', border: '1px solid #2A2A2A' }}>
+              <div style={{ fontSize: '10px', color: '#555', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '4px' }}>Produto</div>
+              <div style={{ fontSize: '14px', color: '#F5F5F5', fontWeight: 600 }}>
+                {pdfPreview.produto_codigo && <span style={{ color: '#F5A623', marginRight: '8px' }}>{pdfPreview.produto_codigo}</span>}
+                {pdfPreview.produto_descricao ?? <span style={{ color: '#444' }}>não detectado</span>}
+              </div>
+              <div style={{ fontSize: '11px', color: '#555', marginTop: '4px' }}>
+                {pdfPreview.produto_codigo ? 'Será vinculado automaticamente se o código existir nos produtos cadastrados.' : ''}
+              </div>
+            </div>
+
+            {/* Operations preview */}
+            <div>
+              <div style={{ fontSize: '11px', color: '#555', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '8px' }}>
+                Operações detectadas ({pdfPreview.operacoes?.length ?? 0})
+              </div>
+              {pdfPreview.operacoes?.length === 0 ? (
+                <div style={{ fontSize: '12px', color: '#555', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <AlertTriangle size={12} /> Nenhuma operação detectada — você pode adicionar manualmente após importar.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {pdfPreview.operacoes.map((op: any, i: number) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#1C1C1C', border: '1px solid #222', borderRadius: '5px', padding: '7px 10px', flexWrap: 'wrap' }}>
+                      <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '12px', color: '#555', minWidth: '28px' }}>
+                        {String(op.sequencia).padStart(3, '0')}
+                      </span>
+                      <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '14px', color: '#F5F5F5', flex: 1 }}>
+                        {op.descricao}
+                      </span>
+                      {op.maquina_codigo && (
+                        <span style={{ fontSize: '12px', color: '#888', background: '#222', padding: '2px 7px', borderRadius: '4px', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700 }}>
+                          {op.maquina_codigo}
+                        </span>
+                      )}
+                      {op.dados_tecnicos && <span style={{ fontSize: '11px', color: '#666' }}>{op.dados_tecnicos}</span>}
+                      {op.data_previsao && <span style={{ fontSize: '11px', color: '#555' }}>{op.data_previsao}</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Form */}
       <div style={{ background: '#1C1C1C', border: '1px solid #2A2A2A', borderRadius: '10px', padding: '20px' }}>
