@@ -42,22 +42,33 @@ function parseBrFloat(s: string): number | null {
 
 export async function POST(req: NextRequest) {
   try {
-    const form = await req.formData()
-    const file = form.get('file') as File | null
-    const debug = form.get('debug') === '1'
-    if (!file) return NextResponse.json({ error: 'Nenhum arquivo enviado.' }, { status: 400 })
-
-    const buf = Buffer.from(await file.arrayBuffer())
+    const contentType = req.headers.get('content-type') ?? ''
 
     let text: string
-    try {
-      const data = await pdfParse(buf)
-      text = data.text
-    } catch (parseErr: any) {
-      return NextResponse.json(
-        { error: `Erro ao ler o PDF: ${parseErr?.message ?? 'formato não suportado'}` },
-        { status: 422 }
-      )
+    let debug = false
+
+    if (contentType.includes('application/json')) {
+      // Text extracted client-side (PDF.js in browser) — no file size limit
+      const body = await req.json()
+      debug = body.debug === true
+      if (!body.text) return NextResponse.json({ error: 'Texto não enviado.' }, { status: 400 })
+      text = body.text as string
+    } else {
+      // Legacy: binary PDF upload (kept for compatibility)
+      const form = await req.formData()
+      const file = form.get('file') as File | null
+      debug = form.get('debug') === '1'
+      if (!file) return NextResponse.json({ error: 'Nenhum arquivo enviado.' }, { status: 400 })
+      const buf = Buffer.from(await file.arrayBuffer())
+      try {
+        const data = await pdfParse(buf)
+        text = data.text
+      } catch (parseErr: any) {
+        return NextResponse.json(
+          { error: `Erro ao ler o PDF: ${parseErr?.message ?? 'formato não suportado'}` },
+          { status: 422 }
+        )
+      }
     }
 
     const result: Record<string, any> = {

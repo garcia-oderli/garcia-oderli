@@ -92,29 +92,48 @@ export default function OrdensPage() {
     if (!file) return
     setPdfParsing(true)
     setPdfPreview(null)
-    const fd = new FormData()
-    fd.append('file', file)
-    fd.append('debug', '1')
-    // Warn about excessively large files
-    if (file.size > 20 * 1024 * 1024) {
-      setError(`Arquivo muito grande (${(file.size / 1024 / 1024).toFixed(1)} MB). O limite é 20 MB.`)
-      setPdfParsing(false)
-      return
-    }
     try {
-      const res = await fetch('/api/parse-op', { method: 'POST', body: fd })
+      // Extract text client-side with PDF.js — avoids Vercel 4.5MB request limit
+      const pdfjsLib = await import('pdfjs-dist')
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`
+
+      const arrayBuffer = await file.arrayBuffer()
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+      let fullText = ''
+      for (let p = 1; p <= pdf.numPages; p++) {
+        const page = await pdf.getPage(p)
+        const content = await page.getTextContent()
+        let lastY: number | null = null
+        let pageText = ''
+        for (const item of content.items as any[]) {
+          if (!('str' in item)) continue
+          const y: number = item.transform[5]
+          if (lastY !== null && Math.abs(y - lastY) > 2) {
+            pageText += '\n'
+          }
+          pageText += item.str
+          lastY = y
+        }
+        fullText += pageText + '\n'
+      }
+
+      const res = await fetch('/api/parse-op', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: fullText }),
+      })
       let data: any
       try {
         data = await res.json()
       } catch {
-        setError(`Erro do servidor (HTTP ${res.status}): resposta inválida. Tente um PDF menor.`)
+        setError(`Erro do servidor (HTTP ${res.status}): resposta inválida.`)
         setPdfParsing(false)
         return
       }
       if (data.error) { setError(data.error); setPdfParsing(false); return }
       setPdfPreview(data)
     } catch (err: any) {
-      setError(`Erro ao enviar o PDF: ${err?.message ?? 'verifique sua conexão.'}`)
+      setError(`Erro ao processar o PDF: ${err?.message ?? 'formato não suportado.'}`)
     }
     setPdfParsing(false)
     if (pdfInputRef.current) pdfInputRef.current.value = ''
