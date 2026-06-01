@@ -94,6 +94,7 @@ export default function OrdensPage() {
     setPdfPreview(null)
     const fd = new FormData()
     fd.append('file', file)
+    fd.append('debug', '1')
     try {
       const res = await fetch('/api/parse-op', { method: 'POST', body: fd })
       const data = await res.json()
@@ -416,6 +417,18 @@ export default function OrdensPage() {
                 </div>
               )}
             </div>
+
+            {/* Debug: raw text when key fields missing */}
+            {(!pdfPreview.numero || !pdfPreview.quantidade_planejada) && pdfPreview._raw && (
+              <details style={{ marginTop: '12px' }}>
+                <summary style={{ fontSize: '11px', color: '#555', cursor: 'pointer', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                  Texto bruto extraído do PDF (diagnóstico)
+                </summary>
+                <pre style={{ fontSize: '10px', color: '#666', background: '#111', padding: '10px', borderRadius: '6px', overflow: 'auto', maxHeight: '200px', whiteSpace: 'pre-wrap', marginTop: '8px' }}>
+                  {pdfPreview._raw}
+                </pre>
+              </details>
+            )}
           </div>
         )}
       </div>
