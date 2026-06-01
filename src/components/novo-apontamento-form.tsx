@@ -120,12 +120,15 @@ export function NovoApontamentoForm({ ordens, funcionarios, maquinas }: Props) {
     setError(null)
 
     if (!ordemId) return setError('Selecione a Ordem de Produção.')
+    const ordemSel = ordens.find(o => o.id === ordemId)
+    if (ordemSel && Number(ordemSel.quantidade_planejada) <= 0)
+      return setError('A OF selecionada não tem quantidade planejada. Edite a ordem antes de registrar um apontamento.')
     if (!funcionarioId) return setError('Selecione o Funcionário.')
     if (!maquinaId) return setError('Selecione a Máquina.')
     if (!turno) return setError('Selecione o Turno.')
     if (!qtdProduzida || Number(qtdProduzida) < 0)
       return setError('Informe a quantidade produzida (mínimo 0).')
-    if (saldo !== null && saldo > 0 && Number(qtdProduzida) > saldo)
+    if (saldo !== null && Number(qtdProduzida) > saldo)
       return setError(`Quantidade excede o saldo da OP (${saldo.toLocaleString('pt-BR')} disponível)`)
     if (!dataInicio) return setError('Informe a data/hora de início.')
     if (!dataFim) return setError('Informe a data/hora de fim.')
@@ -220,6 +223,15 @@ export function NovoApontamentoForm({ ordens, funcionarios, maquinas }: Props) {
               </SelectContent>
             </Select>
           </div>
+
+          {selectedOrdem && Number(selectedOrdem.quantidade_planejada) <= 0 && (
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', borderRadius: '6px', background: 'rgba(244,67,54,0.08)', border: '1px solid rgba(244,67,54,0.4)', padding: '10px 14px' }}>
+              <AlertCircle style={{ width: '16px', height: '16px', color: '#F44336', flexShrink: 0, marginTop: '1px' }} />
+              <p style={{ fontSize: '13px', color: '#F44336', margin: 0 }}>
+                Esta OF não tem quantidade planejada definida. Edite a ordem em <strong>Cadastros → Ordens de Produção</strong> e informe a quantidade antes de registrar um apontamento.
+              </p>
+            </div>
+          )}
 
           {selectedOrdem && loadingSaldo && (
             <p style={{ fontSize: '13px', color: '#888888' }}>Calculando saldo disponível...</p>
