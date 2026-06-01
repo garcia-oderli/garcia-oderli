@@ -103,14 +103,21 @@ export default function OrdensPage() {
       for (let p = 1; p <= pdf.numPages; p++) {
         const page = await pdf.getPage(p)
         const content = await page.getTextContent()
+
+        // Sort by y desc (top→bottom) then x asc (left→right), matching pdf-parse output
+        const items = (content.items as any[])
+          .filter(i => 'str' in i && i.str.trim() !== '')
+          .sort((a, b) => {
+            const yA = Math.round(a.transform[5]), yB = Math.round(b.transform[5])
+            if (Math.abs(yA - yB) > 5) return yB - yA
+            return a.transform[4] - b.transform[4]
+          })
+
         let lastY: number | null = null
         let pageText = ''
-        for (const item of content.items as any[]) {
-          if (!('str' in item)) continue
-          const y: number = item.transform[5]
-          if (lastY !== null && Math.abs(y - lastY) > 2) {
-            pageText += '\n'
-          }
+        for (const item of items) {
+          const y: number = Math.round(item.transform[5])
+          if (lastY !== null && Math.abs(y - lastY) > 5) pageText += '\n'
           pageText += item.str
           lastY = y
         }
@@ -120,7 +127,7 @@ export default function OrdensPage() {
       const res = await fetch('/api/parse-op', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: fullText }),
+        body: JSON.stringify({ text: fullText, debug: true }),
       })
       let data: any
       try {
