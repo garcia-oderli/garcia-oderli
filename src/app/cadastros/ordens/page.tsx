@@ -120,17 +120,22 @@ export default function OrdensPage() {
       if (prods?.length) produto_id = prods[0].id
     }
 
+    const payload = {
+      numero: pdfPreview.numero ?? 'IMPORTADA',
+      lote: pdfPreview.lote ?? null,
+      data_emissao: pdfPreview.data_emissao ?? null,
+      produto_id: produto_id ?? null,
+      quantidade_planejada: pdfPreview.quantidade_planejada ?? 0,
+      data_prevista: pdfPreview.data_prevista ?? new Date().toISOString().slice(0, 10),
+      status: 'ABERTA',
+      observacao: pdfPreview.observacao ?? null,
+    }
+
+    // Upsert by numero — if OF already exists, update it
     const { data: ordemData, error: ordemErr } = await (supabase as any)
-      .from('ordens_producao').insert({
-        numero: pdfPreview.numero ?? 'IMPORTADA',
-        lote: pdfPreview.lote ?? null,
-        data_emissao: pdfPreview.data_emissao ?? null,
-        produto_id: produto_id ?? null,
-        quantidade_planejada: pdfPreview.quantidade_planejada ?? 0,
-        data_prevista: pdfPreview.data_prevista ?? new Date().toISOString().slice(0, 10),
-        status: 'ABERTA',
-        observacao: pdfPreview.observacao ?? null,
-      }).select('id').single()
+      .from('ordens_producao')
+      .upsert(payload, { onConflict: 'numero', ignoreDuplicates: false })
+      .select('id').single()
 
     if (ordemErr) { setError(ordemErr.message); setPdfImporting(false); return }
 

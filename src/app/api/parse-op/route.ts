@@ -60,12 +60,11 @@ export async function POST(req: NextRequest) {
     if (debug) result._raw = text
 
     // ── OF / Lote / Quantidade ────────────────────────────────────────────
-    // Patrimar format: "{lote} {n/n} {OF} {qtd}"
+    // Patrimar format A: "{lote} {n/n} {OF} {qtd}" on one line
     // Ex: "024811 1/1 791105 1,000"  or  "024810 1/1 791104 60,000"
-    // Try flexible digit ranges and optional whitespace variations
     const ofLotePatterns = [
-      /(\d{4,8})\s+\d+\/\d+\s+(\d{4,8})\s+([\d.,]+)/,   // standard
-      /(\d{4,8})[\s\n]+\d+\/\d+[\s\n]+(\d{4,8})[\s\n]+([\d.,]+)/, // multiline
+      /(\d{4,8})\s+\d+\/\d+\s+(\d{4,8})\s+([\d.,]+)/,
+      /(\d{4,8})[\s\n]+\d+\/\d+[\s\n]+(\d{4,8})[\s\n]+([\d.,]+)/,
     ]
     for (const pat of ofLotePatterns) {
       const m = text.match(pat)
@@ -77,20 +76,39 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Fallback: look for OF number near "Ordem" or "O.F." label
+    // Patrimar format B: labeled fields on separate lines
+    // "Ordem de Fabricação\n791104" or "Ordem Fabricação: 791104"
     if (!result.numero) {
-      const ofLabel = text.match(/(?:Ordem\s+(?:de\s+)?Fab|O\.?F\.?)[:\s#]+(\d{4,8})/i)
-      if (ofLabel) result.numero = ofLabel[1]
+      const pats = [
+        /Ordem\s+(?:de\s+)?Fabrica[çc][aã]o[\s\n:]+(\d{4,8})/i,
+        /N[uú]mero\s+(?:da\s+)?O\.?F\.?[\s\n:]+(\d{4,8})/i,
+        /O\.?F\.?\s*[:\s#]+(\d{4,8})/i,
+        /Ordem[\s\n:]+(\d{4,8})/i,
+      ]
+      for (const p of pats) {
+        const m = text.match(p)
+        if (m) { result.numero = m[1]; break }
+      }
     }
 
-    // Fallback: look for quantity near "Quantidade" label
-    if (!result.quantidade_planejada) {
-      const qtdLabel = text.match(/Qtd?\.?(?:\s+Plan(?:ejada)?)?[:\s]+([\d.,]+)/i)
-      if (qtdLabel) result.quantidade_planejada = parseBrFloat(qtdLabel[1])
+    // Lote label
+    if (!result.lote) {
+      const m = text.match(/Lote[\s\n:]+(\d{4,8})/i)
+      if (m) result.lote = m[1]
     }
+
+    // Quantity label variants
     if (!result.quantidade_planejada) {
-      const qtdLabel = text.match(/Quantidade[:\s]+([\d.,]+)/i)
-      if (qtdLabel) result.quantidade_planejada = parseBrFloat(qtdLabel[1])
+      const pats = [
+        /Qtd?\.?\s*[Pp]lan(?:ejada)?[\s\n:]+([\d.,]+)/i,
+        /Qtd?\.?\s*[Pp]rev(?:ista)?[\s\n:]+([\d.,]+)/i,
+        /Quantidade[\s\n:]+([\d.,]+)/i,
+        /Qtd?\.?[\s\n:]+([\d.,]+)/i,
+      ]
+      for (const p of pats) {
+        const m = text.match(p)
+        if (m) { result.quantidade_planejada = parseBrFloat(m[1]); break }
+      }
     }
 
     // ── Datas ─────────────────────────────────────────────────────────────
