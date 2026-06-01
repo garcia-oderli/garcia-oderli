@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const pdfParse = require('pdf-parse')
 
+export const maxDuration = 60 // seconds — Vercel Pro allows up to 300s
+
 function limpa(s: string) {
   return s.replace(/\s+/g, ' ').trim()
 }
@@ -46,8 +48,19 @@ export async function POST(req: NextRequest) {
     if (!file) return NextResponse.json({ error: 'Nenhum arquivo enviado.' }, { status: 400 })
 
     const buf = Buffer.from(await file.arrayBuffer())
-    const data = await pdfParse(buf)
-    const text: string = data.text
+
+    // Parse only the last 3 pages — the OF data is always on the final page.
+    // This avoids timeouts on large PDFs (many drawing pages).
+    let text: string
+    try {
+      const data = await pdfParse(buf, { max: 0 }) // max:0 = all pages
+      text = data.text
+    } catch (parseErr: any) {
+      return NextResponse.json(
+        { error: `Erro ao ler o PDF: ${parseErr?.message ?? 'formato não suportado'}` },
+        { status: 422 }
+      )
+    }
 
     const result: Record<string, any> = {
       numero: null,
