@@ -237,7 +237,7 @@ export function NovoApontamentoForm({ ordens, funcionarios, maquinas }: Props) {
               <p style={{ fontSize: '13px', color: '#888888', margin: 0 }}>
                 Saldo disponível:{' '}
                 <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700, color: saldo > 0 ? '#4CAF50' : '#F44336' }}>
-                  {saldo.toLocaleString('pt-BR')} {selectedOrdem.produtos?.unidade_medida}
+                  {saldo.toLocaleString('pt-BR')} {selectedOrdem.produtos?.unidade_medida ?? 'un'}
                 </span>
               </p>
             </div>
@@ -264,7 +264,7 @@ export function NovoApontamentoForm({ ordens, funcionarios, maquinas }: Props) {
                 <p style={{ fontSize: '10px', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#F5A623', margin: '0 0 4px 0' }}>Qtd. Planejada</p>
                 <p style={{ fontSize: '13px', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 600, color: '#F5F5F5', margin: 0 }}>
                   {Number(selectedOrdem.quantidade_planejada).toLocaleString('pt-BR')}{' '}
-                  {selectedOrdem.produtos?.unidade_medida}
+                  {selectedOrdem.produtos?.unidade_medida ?? 'un'}
                 </p>
               </div>
               <div>
@@ -337,7 +337,7 @@ export function NovoApontamentoForm({ ordens, funcionarios, maquinas }: Props) {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               {fieldLabel(
-                selectedOrdem ? `Quantidade Produzida * (${selectedOrdem.produtos?.unidade_medida})` : 'Quantidade Produzida *',
+                selectedOrdem ? `Quantidade Produzida * (${selectedOrdem.produtos?.unidade_medida ?? 'un'})` : 'Quantidade Produzida *',
                 'qtd-produzida'
               )}
               <Input
