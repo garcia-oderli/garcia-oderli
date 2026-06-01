@@ -95,13 +95,26 @@ export default function OrdensPage() {
     const fd = new FormData()
     fd.append('file', file)
     fd.append('debug', '1')
+    // Warn about large files before sending
+    if (file.size > 5 * 1024 * 1024) {
+      setError(`Arquivo muito grande (${(file.size / 1024 / 1024).toFixed(1)} MB). O limite é 5 MB. Tente reduzir o PDF.`)
+      setPdfParsing(false)
+      return
+    }
     try {
       const res = await fetch('/api/parse-op', { method: 'POST', body: fd })
-      const data = await res.json()
+      let data: any
+      try {
+        data = await res.json()
+      } catch {
+        setError(`Erro do servidor (HTTP ${res.status}): resposta inválida. Tente um PDF menor.`)
+        setPdfParsing(false)
+        return
+      }
       if (data.error) { setError(data.error); setPdfParsing(false); return }
       setPdfPreview(data)
-    } catch {
-      setError('Erro ao ler o PDF.')
+    } catch (err: any) {
+      setError(`Erro ao enviar o PDF: ${err?.message ?? 'verifique sua conexão.'}`)
     }
     setPdfParsing(false)
     if (pdfInputRef.current) pdfInputRef.current.value = ''

@@ -49,11 +49,9 @@ export async function POST(req: NextRequest) {
 
     const buf = Buffer.from(await file.arrayBuffer())
 
-    // Parse only the last 3 pages — the OF data is always on the final page.
-    // This avoids timeouts on large PDFs (many drawing pages).
     let text: string
     try {
-      const data = await pdfParse(buf, { max: 0 }) // max:0 = all pages
+      const data = await pdfParse(buf)
       text = data.text
     } catch (parseErr: any) {
       return NextResponse.json(
