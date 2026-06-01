@@ -644,8 +644,13 @@ export default function OrdensPage() {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                           {ops.map(op => {
                             const osc = opStatusColors[op.status]
+                            const hoje = new Date().toISOString().slice(0, 10)
+                            const atrasada = op.data_previsao && op.data_previsao < hoje && op.status !== 'CONCLUIDA'
+                            const diasAtr = atrasada && op.data_previsao
+                              ? Math.floor((Date.now() - new Date(op.data_previsao + 'T12:00:00').getTime()) / 86400000)
+                              : 0
                             return (
-                              <div key={op.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#1C1C1C', border: '1px solid #222', borderRadius: '6px', padding: '8px 12px', flexWrap: 'wrap' }}>
+                              <div key={op.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: atrasada ? '#1E1212' : '#1C1C1C', border: `1px solid ${atrasada ? '#F4433655' : '#222'}`, borderRadius: '6px', padding: '8px 12px', flexWrap: 'wrap' }}>
                                 {/* Seq */}
                                 <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '13px', color: '#444', minWidth: '30px' }}>
                                   {String(op.sequencia).padStart(3, '0')}
@@ -655,6 +660,11 @@ export default function OrdensPage() {
                                   style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', background: `${osc}22`, color: osc, border: `1px solid ${osc}44`, cursor: 'pointer', fontFamily: 'Barlow Condensed, sans-serif', letterSpacing: '0.04em', flexShrink: 0 }}>
                                   {opStatusLabels[op.status]}
                                 </button>
+                                {atrasada && (
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '10px', color: '#F44336', fontWeight: 700, fontFamily: 'Barlow Condensed, sans-serif', flexShrink: 0 }}>
+                                    ⚠ {diasAtr}d
+                                  </span>
+                                )}
                                 {/* Description */}
                                 <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '14px', color: '#F5F5F5', letterSpacing: '0.04em', flex: 1, minWidth: '100px' }}>
                                   {op.descricao}

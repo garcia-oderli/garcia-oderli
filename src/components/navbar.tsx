@@ -2,13 +2,30 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ChevronDown, Menu, X, Zap, Plus, LayoutDashboard } from 'lucide-react'
-import { useState } from 'react'
+import { ChevronDown, Menu, X, Zap, Plus, LayoutDashboard, CalendarClock } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
+
+function useOverdueCount() {
+  const [count, setCount] = useState(0)
+  useEffect(() => {
+    const supabase = createClient()
+    const hoje = new Date().toISOString().slice(0, 10)
+    ;(supabase as any)
+      .from('ordens_operacoes')
+      .select('id', { count: 'exact', head: true })
+      .lt('data_previsao', hoje)
+      .neq('status', 'CONCLUIDA')
+      .then(({ count: c }: any) => setCount(c ?? 0))
+  }, [])
+  return count
+}
 
 export function Navbar() {
   const pathname = usePathname()
   const [cadastrosOpen, setCadastrosOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const overdueCount = useOverdueCount()
 
   const cadastrosLinks = [
     { href: '/cadastros/produtos', label: 'Produtos' },
@@ -58,6 +75,14 @@ export function Navbar() {
             <Link href="/setor" style={{ ...linkStyle(pathname === '/setor'), display: 'flex', alignItems: 'center', gap: '4px' }}>
               <LayoutDashboard size={13} /> Setores
             </Link>
+            <Link href="/agenda" style={{ ...linkStyle(pathname === '/agenda'), display: 'flex', alignItems: 'center', gap: '6px', position: 'relative' }}>
+              <CalendarClock size={13} /> Agenda
+              {overdueCount > 0 && (
+                <span style={{ background: '#F44336', color: '#fff', fontSize: '10px', fontWeight: 700, borderRadius: '10px', padding: '1px 5px', lineHeight: 1.4, letterSpacing: 0 }}>
+                  {overdueCount}
+                </span>
+              )}
+            </Link>
 
             <div style={{ position: 'relative' }}>
               <button
@@ -86,6 +111,14 @@ export function Navbar() {
 
           {/* Mobile: botões rápidos + hamburguer */}
           <div className="nav-mobile" style={{ display: 'none', alignItems: 'center', gap: '8px' }}>
+            {overdueCount > 0 && (
+              <Link href="/agenda" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#2a1212', border: '1px solid #F4433666', borderRadius: '6px', color: '#F44336', textDecoration: 'none' }}>
+                <CalendarClock size={16} />
+                <span style={{ position: 'absolute', top: '-4px', right: '-4px', background: '#F44336', color: '#fff', fontSize: '9px', fontWeight: 700, borderRadius: '8px', padding: '0 4px', lineHeight: '14px' }}>
+                  {overdueCount}
+                </span>
+              </Link>
+            )}
             <Link href="/r" style={{ padding: '7px 12px', fontSize: '13px', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', background: 'transparent', border: '1px solid #F5A623', color: '#F5A623', textDecoration: 'none', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
               <Zap size={13} /> Rápido
             </Link>
@@ -105,6 +138,14 @@ export function Navbar() {
           <Link href="/" style={linkStyle(pathname === '/')} onClick={() => setMobileOpen(false)}>Dashboard</Link>
           <Link href="/apontamentos" style={linkStyle(pathname === '/apontamentos')} onClick={() => setMobileOpen(false)}>Apontamentos</Link>
           <Link href="/setor" style={linkStyle(pathname === '/setor')} onClick={() => setMobileOpen(false)}>Setores</Link>
+          <Link href="/agenda" style={{ ...linkStyle(pathname === '/agenda'), display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => setMobileOpen(false)}>
+            Agenda
+            {overdueCount > 0 && (
+              <span style={{ background: '#F44336', color: '#fff', fontSize: '10px', fontWeight: 700, borderRadius: '10px', padding: '1px 6px' }}>
+                {overdueCount}
+              </span>
+            )}
+          </Link>
           <div style={{ padding: '10px 16px 4px', fontSize: '11px', fontFamily: 'Barlow Condensed, sans-serif', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#555' }}>Cadastros</div>
           {cadastrosLinks.map(l => (
             <Link key={l.href} href={l.href} style={{ ...linkStyle(pathname === l.href), paddingLeft: '28px' }} onClick={() => setMobileOpen(false)}>{l.label}</Link>
