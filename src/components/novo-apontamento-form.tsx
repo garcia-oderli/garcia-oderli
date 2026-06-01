@@ -125,7 +125,7 @@ export function NovoApontamentoForm({ ordens, funcionarios, maquinas }: Props) {
     if (!turno) return setError('Selecione o Turno.')
     if (!qtdProduzida || Number(qtdProduzida) < 0)
       return setError('Informe a quantidade produzida (mínimo 0).')
-    if (saldo !== null && Number(qtdProduzida) > saldo)
+    if (saldo !== null && saldo > 0 && Number(qtdProduzida) > saldo)
       return setError(`Quantidade excede o saldo da OP (${saldo.toLocaleString('pt-BR')} disponível)`)
     if (!dataInicio) return setError('Informe a data/hora de início.')
     if (!dataFim) return setError('Informe a data/hora de fim.')
@@ -224,7 +224,7 @@ export function NovoApontamentoForm({ ordens, funcionarios, maquinas }: Props) {
           {selectedOrdem && loadingSaldo && (
             <p style={{ fontSize: '13px', color: '#888888' }}>Calculando saldo disponível...</p>
           )}
-          {selectedOrdem && !loadingSaldo && saldo !== null && (
+          {selectedOrdem && !loadingSaldo && saldo !== null && Number(selectedOrdem.quantidade_planejada) > 0 && (
             <div style={{
               display: 'flex',
               alignItems: 'center',
