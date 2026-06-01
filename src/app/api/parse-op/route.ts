@@ -12,7 +12,6 @@ function parseData(s: string): string | null {
   const dia = m[1], mes = m[2]
   let ano = m[3]
   if (ano.length === 2) ano = '20' + ano
-  // Sanity check: year must be reasonable
   if (parseInt(ano) < 2000 || parseInt(ano) > 2100) return null
   return `${ano}-${mes}-${dia}`
 }
@@ -28,15 +27,23 @@ function allDates(text: string): string[] {
   }).filter(Boolean) as string[]
 }
 
+function parseBrFloat(s: string): number | null {
+  // Handles: "1,000" → 1, "60,000" → 60, "1.500,00" → 1500, "1500" → 1500
+  const clean = s.replace(/\./g, '').replace(',', '.')
+  const n = parseFloat(clean)
+  return isNaN(n) ? null : n
+}
+
 export async function POST(req: NextRequest) {
   try {
     const form = await req.formData()
     const file = form.get('file') as File | null
+    const debug = form.get('debug') === '1'
     if (!file) return NextResponse.json({ error: 'Nenhum arquivo enviado.' }, { status: 400 })
 
     const buf = Buffer.from(await file.arrayBuffer())
     const data = await pdfParse(buf)
-    const text = data.text
+    const text: string = data.text
 
     const result: Record<string, any> = {
       numero: null,
@@ -50,25 +57,55 @@ export async function POST(req: NextRequest) {
       operacoes: [] as any[],
     }
 
-    // ── Linha com: {lote} {n/n} {OF} {qtd} ──────────────────────────────
-    // Ex: "024811 1/1 791105 1,000"  ou  "024810 1/1 791104 60,000"
-    const ofLoteMatch = text.match(/(\d{5,7})\s+\d+\/\d+\s+(\d{5,7})\s+([\d.,]+)/)
-    if (ofLoteMatch) {
-      result.lote   = ofLoteMatch[1]
-      result.numero = ofLoteMatch[2]
-      result.quantidade_planejada = parseFloat(
-        ofLoteMatch[3].replace(/\./g, '').replace(',', '.')
-      ) || null
+    if (debug) result._raw = text
+
+    // ── OF / Lote / Quantidade ────────────────────────────────────────────
+    // Patrimar format: "{lote} {n/n} {OF} {qtd}"
+    // Ex: "024811 1/1 791105 1,000"  or  "024810 1/1 791104 60,000"
+    // Try flexible digit ranges and optional whitespace variations
+    const ofLotePatterns = [
+      /(\d{4,8})\s+\d+\/\d+\s+(\d{4,8})\s+([\d.,]+)/,   // standard
+      /(\d{4,8})[\s\n]+\d+\/\d+[\s\n]+(\d{4,8})[\s\n]+([\d.,]+)/, // multiline
+    ]
+    for (const pat of ofLotePatterns) {
+      const m = text.match(pat)
+      if (m) {
+        result.lote   = m[1]
+        result.numero = m[2]
+        result.quantidade_planejada = parseBrFloat(m[3])
+        break
+      }
+    }
+
+    // Fallback: look for OF number near "Ordem" or "O.F." label
+    if (!result.numero) {
+      const ofLabel = text.match(/(?:Ordem\s+(?:de\s+)?Fab|O\.?F\.?)[:\s#]+(\d{4,8})/i)
+      if (ofLabel) result.numero = ofLabel[1]
+    }
+
+    // Fallback: look for quantity near "Quantidade" label
+    if (!result.quantidade_planejada) {
+      const qtdLabel = text.match(/Qtd?\.?(?:\s+Plan(?:ejada)?)?[:\s]+([\d.,]+)/i)
+      if (qtdLabel) result.quantidade_planejada = parseBrFloat(qtdLabel[1])
+    }
+    if (!result.quantidade_planejada) {
+      const qtdLabel = text.match(/Quantidade[:\s]+([\d.,]+)/i)
+      if (qtdLabel) result.quantidade_planejada = parseBrFloat(qtdLabel[1])
     }
 
     // ── Datas ─────────────────────────────────────────────────────────────
-    // Linha: "Data Emissão: 01/06/26 Data Abertura: Data Previsão: 01/06/26 16/06/26"
-    // Precisamos: emissão = 1ª data, previsão = última data da linha
+    // Line: "Data Emissão: 01/06/26 Data Abertura: Data Previsão: 01/06/26 16/06/26"
+    // emissão = first date, previsão = last date on the line
     const dataLinha = text.match(/Data\s+Emiss[aã]o[^\n]+/i)
     if (dataLinha) {
       const datas = allDates(dataLinha[0])
       if (datas.length >= 1) result.data_emissao = datas[0]
       if (datas.length >= 2) result.data_prevista = datas[datas.length - 1]
+    }
+    // Fallback: separate "Previsão" line
+    if (!result.data_prevista) {
+      const prevLinha = text.match(/Previs[aã]o[:\s]+(\d{2}\/\d{2}\/\d{2,4})/i)
+      if (prevLinha) result.data_prevista = parseData(prevLinha[1])
     }
 
     // ── Produto ──────────────────────────────────────────────────────────
@@ -78,14 +115,18 @@ export async function POST(req: NextRequest) {
       result.produto_codigo    = limpa(prodMatch[1])
       result.produto_descricao = limpa(prodMatch[2])
     }
+    // Fallback: just grab product code near "Produto"
+    if (!result.produto_codigo) {
+      const codMatch = text.match(/Produto[:\s]+([\d.]{5,})/i)
+      if (codMatch) result.produto_codigo = limpa(codMatch[1])
+    }
 
     // ── Observação ────────────────────────────────────────────────────────
     const obsMatch = text.match(/Observa[çc][aã]o[:\s]+([^\n]+)/i)
     if (obsMatch) result.observacao = limpa(obsMatch[1])
 
     // ── Operações ─────────────────────────────────────────────────────────
-    // Blocos no formato:
-    //   {seq}\n{fase}\nDESCRICAO  MAQUINA  TEMPO\n{dados_tecnicos}\n{grupo}\nPrevisão do Processo: dd/mm/yy
+    // Block format: {seq}\n{fase}\nDESC  MACHINE  TIME\n{tech}\n{group}\nPrevisão do Processo: dd/mm/yy
     const opRegex = /(\d{3})\s*\n(\d{2})\s*\n([\w\s]+?)\s+([A-Z]{2,5}\d{2,3})\s+([\d,]+)\s*\n([^\n]*)\n([^\n]*)\nPrevis[aã]o\s+do\s+Processo[:\s]+(\d{2}\/\d{2}\/\d{2,4})/gim
     let opMatch
     while ((opMatch = opRegex.exec(text)) !== null) {
@@ -96,13 +137,13 @@ export async function POST(req: NextRequest) {
         maquina_codigo:  limpa(opMatch[4]),
         grupo:           limpa(opMatch[6]) || null,
         dados_tecnicos:  limpa(opMatch[7]) || null,
-        tempo_producao:  parseFloat(opMatch[5].replace(',', '.')) || null,
+        tempo_producao:  parseBrFloat(opMatch[5]),
         data_previsao:   parseData(opMatch[8]),
         status:          'PENDENTE',
       })
     }
 
-    // Fallback line-based extraction
+    // Fallback: line-based extraction
     if (result.operacoes.length === 0) {
       const linhas = text.split('\n').map((l: string) => l.trim()).filter(Boolean)
       const opKeywords = ['COLAR BORDA', 'PINTAR UV', 'PINTAR PU', 'PINTAR', 'CORTAR', 'FURAR', 'USINAR', 'LIXAR', 'MONTAR', 'EMBALAR']
@@ -123,7 +164,7 @@ export async function POST(req: NextRequest) {
           maquina_codigo: maq,
           grupo:          null,
           dados_tecnicos: dadosLine && dadosLine !== maq ? dadosLine : null,
-          tempo_producao: tempo ? parseFloat(tempo.replace(',', '.')) : null,
+          tempo_producao: tempo ? parseBrFloat(tempo) : null,
           data_previsao:  prevLine ? parseData(prevLine) : null,
           status:         'PENDENTE',
         })
