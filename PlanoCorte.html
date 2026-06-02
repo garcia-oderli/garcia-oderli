@@ -651,7 +651,11 @@ function renderPecasTab() {
               tiras++; pcsTotal += N; widthUsed += sep + lt;
             } else if (N > 1) { N--; } else { break; }
           }
-          otimo = `<span style="font-family:'IBM Plex Mono',monospace;color:var(--ok)">${tiras} tiras × ${N_max} pçs = <strong>${pcsTotal}/chapa</strong></span>`;
+          if (tiras === 0) {
+            otimo = `<span style="color:var(--red)">⚠ Largura ${p.largura}mm não cabe (util: ${Math.round(largura_util)}mm)</span>`;
+          } else {
+            otimo = `<span style="font-family:'IBM Plex Mono',monospace;color:var(--ok)">${tiras} tiras × ${N_max} pçs = <strong>${pcsTotal}/chapa</strong></span>`;
+          }
         }
       }
       rows += `<tr>
@@ -955,7 +959,8 @@ function arrangeStrips(pieces_info, chapa) {
   let label_idx = 0;
   const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
-  const pending = pieces_info.map(pi => ({...pi}));
+  // Use pieces_info directly (no copy) so qtd_restante reductions persist to the caller
+  const pending = pieces_info;
 
   // Keep adding strips until no more fit on this chapa
   let placed = true;
@@ -1619,20 +1624,24 @@ function drawPlan() {
         ctx.fillStyle = '#F5A623';
         ctx.fillText('✂ TRAÇA', tx + 3, oy + 14);
 
-        // Sobra area
+        // Sobra area (traça)
         const sobraW = (chapa.comprimento - cu.corte_traca) * scale;
         if (sobraW > 10) {
+          const sT_w_px = sobraW - ab;
+          const sT_h_px = ch_h;
           ctx.fillStyle = 'rgba(0,0,0,0.25)';
-          ctx.fillRect(tx, oy, sobraW - ab, ch_h);
-          drawHatch(ctx, tx, oy, sobraW - ab, ch_h);
+          ctx.fillRect(tx, oy, sT_w_px, sT_h_px);
+          drawHatch(ctx, tx, oy, sT_w_px, sT_h_px);
+          const sT_w_mm = chapa.comprimento - cu.corte_traca;
+          const sT_h_mm = chapa.largura;
+          hitObjects.push({ type: 'sobra', x: tx, y: oy, w: sT_w_px, h: sT_h_px,
+            sobra_w_mm: sT_w_mm, sobra_h_mm: sT_h_mm, chapaId: cu.chapaId, chapaIndex: cu.chapaIndex });
           if (sobraW > 40) {
-            const sW_mm = (chapa.comprimento - cu.corte_traca).toFixed(0);
-            const sH_mm = chapa.largura.toFixed(0);
             ctx.font = 'bold 10px sans-serif';
             ctx.fillStyle = 'rgba(255,255,255,0.55)';
             ctx.fillText('SOBRA', tx + 4, oy + ch_h / 2 - 8);
             ctx.font = '9px monospace';
-            ctx.fillText(`${sW_mm} × ${sH_mm} mm`, tx + 4, oy + ch_h / 2 + 6);
+            ctx.fillText(`${sT_w_mm.toFixed(0)} × ${sT_h_mm.toFixed(0)} mm`, tx + 4, oy + ch_h / 2 + 6);
           }
         }
       }
@@ -1650,14 +1659,16 @@ function drawPlan() {
             ctx.fillStyle = 'rgba(0,0,0,0.2)';
             ctx.fillRect(ox + ab, sobraY, sW_px, sH_px);
             drawHatch(ctx, ox + ab, sobraY, sW_px, sH_px);
+            const sL_w_mm = (cu.corte_traca > 0 ? cu.corte_traca : chapa.comprimento - chapa.apara_borda) - chapa.apara_borda;
+            const sL_h_mm = sH_px / scale;
+            hitObjects.push({ type: 'sobra', x: ox + ab, y: sobraY, w: sW_px, h: sH_px,
+              sobra_w_mm: sL_w_mm, sobra_h_mm: sL_h_mm, chapaId: cu.chapaId, chapaIndex: cu.chapaIndex });
             if (sW_px > 60 && sH_px > 16) {
-              const sW_mm = ((cu.corte_traca > 0 ? cu.corte_traca : chapa.comprimento - chapa.apara_borda) - chapa.apara_borda).toFixed(0);
-              const sH_mm = (sH_px / scale).toFixed(0);
               ctx.font = 'bold 10px sans-serif';
               ctx.fillStyle = 'rgba(255,255,255,0.55)';
               ctx.fillText('SOBRA', ox + ab + 4, sobraY + sH_px / 2 - 8);
               ctx.font = '9px monospace';
-              ctx.fillText(`${sW_mm} × ${sH_mm} mm`, ox + ab + 4, sobraY + sH_px / 2 + 6);
+              ctx.fillText(`${sL_w_mm.toFixed(0)} × ${sL_h_mm.toFixed(0)} mm`, ox + ab + 4, sobraY + sH_px / 2 + 6);
             }
           }
         }
@@ -1797,7 +1808,34 @@ function onCanvasClick(e) {
   let html = '<h3>Detalhe</h3>';
   const chapa = state.chapas.find(c => c.id === hit.chapaId);
 
-  if (hit.type === 'tira') {
+  if (hit.type === 'sobra') {
+    const sw = hit.sobra_w_mm, sh = hit.sobra_h_mm;
+    html += detailRow('Dimensões', `${sw.toFixed(0)} × ${sh.toFixed(0)} mm`);
+    html += detailRow('Área', `${(sw * sh / 1e6).toFixed(4)} m²`);
+    const fitting = state.pecas.filter(p => {
+      const normal = p.comprimento <= sw && p.largura <= sh;
+      const rotated = p.direcao_fio === 'livre' && p.largura <= sw && p.comprimento <= sh;
+      return normal || rotated;
+    });
+    if (fitting.length === 0) {
+      html += `<div style="margin-top:10px;color:var(--txt2);font-size:12px">Nenhuma peça cadastrada cabe nesta sobra.</div>`;
+    } else {
+      html += `<div style="margin-top:10px;font-size:11px;color:var(--txt2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Peças que cabem aqui</div>`;
+      fitting.forEach(p => {
+        const canNormal = p.comprimento <= sw && p.largura <= sh;
+        const pw = canNormal ? p.comprimento : p.largura;
+        const ph = canNormal ? p.largura : p.comprimento;
+        const cX = Math.floor(sw / pw);
+        const cY = Math.floor(sh / ph);
+        const qty = cX * cY;
+        const rot = !canNormal ? ' <span style="color:var(--txt2)">(girada)</span>' : '';
+        html += `<div style="margin-top:4px;padding:6px 8px;background:var(--surface);border:1px solid var(--border);border-radius:4px;font-size:12px">
+          <strong style="color:var(--accent)">${esc(p.codigo)}</strong>${rot}<br>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:11px">${pw}×${ph}mm → ${cX}×${cY} = <strong style="color:var(--ok)">${qty} pçs</strong></span>
+        </div>`;
+      });
+    }
+  } else if (hit.type === 'tira') {
     const ti = hit.tira;
     const pi = ti.pecas[0];
     const peca = state.pecas.find(p => p.id === pi?.pecaId);
