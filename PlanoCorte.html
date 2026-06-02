@@ -394,7 +394,6 @@ const DEFAULT_CHAPA = {
   boca_ml: 700,
   oversize_ml: 3,
   apara_borda: 5,
-  qtd_estoque: 10,
   cor: '#1e4a7a'
 };
 
@@ -502,7 +501,7 @@ function renderTab(tab) {
 function renderChapasTab() {
   let rows = '';
   if (state.chapas.length === 0) {
-    rows = `<tr><td colspan="8"><div class="empty-state"><div class="icon">📋</div><p>Nenhuma chapa cadastrada</p></div></td></tr>`;
+    rows = `<tr><td colspan="7"><div class="empty-state"><div class="icon">📋</div><p>Nenhuma chapa cadastrada</p></div></td></tr>`;
   } else {
     state.chapas.forEach(c => {
       rows += `<tr>
@@ -511,7 +510,6 @@ function renderChapasTab() {
         <td><span style="font-family:'IBM Plex Mono',monospace">${c.largura}</span> mm</td>
         <td><span style="font-family:'IBM Plex Mono',monospace">${c.espessura}</span> mm</td>
         <td><span style="font-family:'IBM Plex Mono',monospace">${c.kerf_serra}</span> mm</td>
-        <td><span style="font-family:'IBM Plex Mono',monospace">${c.qtd_estoque}</span></td>
         <td><span class="color-dot" style="background:${c.cor}"></span></td>
         <td>
           <button class="btn btn-outline" style="padding:4px 10px;font-size:12px" onclick="editChapa('${c.id}')">Editar</button>
@@ -528,7 +526,7 @@ function renderChapasTab() {
     <div class="table-wrap">
       <table>
         <thead><tr>
-          <th>Nome</th><th>Comprimento</th><th>Largura</th><th>Espessura</th><th>Kerf Serra</th><th>Qtd Estoque</th><th>Cor</th><th>Ações</th>
+          <th>Nome</th><th>Comprimento</th><th>Largura</th><th>Espessura</th><th>Kerf Serra</th><th>Cor</th><th>Ações</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
@@ -553,10 +551,6 @@ function chapaFormHTML(c) {
     <div class="form-group">
       <label>Espessura (mm)</label>
       <input type="number" id="f_espessura" value="${v.espessura||15}" min="1">
-    </div>
-    <div class="form-group">
-      <label>Qtd em Estoque</label>
-      <input type="number" id="f_qtd_estoque" value="${v.qtd_estoque||1}" min="0">
     </div>
     <div class="form-group">
       <label>Kerf Serra (mm)</label>
@@ -595,7 +589,7 @@ function addChapa() {
       espessura: +gv('f_espessura'), kerf_serra: +gv('f_kerf_serra'),
       kerf_ml: +gv('f_kerf_ml'), boca_ml: +gv('f_boca_ml'),
       oversize_ml: +gv('f_oversize_ml'), apara_borda: +gv('f_apara_borda'),
-      qtd_estoque: +gv('f_qtd_estoque'), cor: gv('f_cor')
+      cor: gv('f_cor')
     };
     state.chapas.push(chapa);
     saveState(); closeModal(); renderTab('chapas');
@@ -612,7 +606,7 @@ function editChapa(id) {
     c.espessura = +gv('f_espessura'); c.kerf_serra = +gv('f_kerf_serra');
     c.kerf_ml = +gv('f_kerf_ml'); c.boca_ml = +gv('f_boca_ml');
     c.oversize_ml = +gv('f_oversize_ml'); c.apara_borda = +gv('f_apara_borda');
-    c.qtd_estoque = +gv('f_qtd_estoque'); c.cor = gv('f_cor');
+    c.cor = gv('f_cor');
     saveState(); closeModal(); renderTab('chapas');
     showToast('Chapa atualizada', 'ok');
   }, 'Editar Chapa');
@@ -639,10 +633,27 @@ const TIPOS_CORTE = {
 function renderPecasTab() {
   let rows = '';
   if (state.pecas.length === 0) {
-    rows = `<tr><td colspan="8"><div class="empty-state"><div class="icon">🔩</div><p>Nenhuma peça cadastrada</p></div></td></tr>`;
+    rows = `<tr><td colspan="9"><div class="empty-state"><div class="icon">🔩</div><p>Nenhuma peça cadastrada</p></div></td></tr>`;
   } else {
     state.pecas.forEach(p => {
       const chapa = state.chapas.find(c => c.id === p.chapaId);
+      let otimo = '—';
+      if (chapa && (p.tipo_corte === 'traca_ripa_ml' || p.tipo_corte === 'ripa_ml')) {
+        const N_max = calcNMax(p.largura, chapa.boca_ml, chapa.oversize_ml, chapa.kerf_ml);
+        if (N_max >= 1) {
+          const largura_util = chapa.largura - 2 * chapa.apara_borda;
+          let tiras = 0, pcsTotal = 0, widthUsed = 0;
+          let N = N_max;
+          while (true) {
+            const lt = larguraTira(N, p.largura, chapa.kerf_ml, chapa.oversize_ml);
+            const sep = tiras > 0 ? chapa.kerf_serra : 0;
+            if (widthUsed + sep + lt <= largura_util) {
+              tiras++; pcsTotal += N; widthUsed += sep + lt;
+            } else if (N > 1) { N--; } else { break; }
+          }
+          otimo = `<span style="font-family:'IBM Plex Mono',monospace;color:var(--ok)">${tiras} tiras × ${N_max} pçs = <strong>${pcsTotal}/chapa</strong></span>`;
+        }
+      }
       rows += `<tr>
         <td><strong>${esc(p.codigo)}</strong></td>
         <td><span style="font-family:'IBM Plex Mono',monospace">${p.comprimento}</span> mm</td>
@@ -650,6 +661,7 @@ function renderPecasTab() {
         <td><span style="font-family:'IBM Plex Mono',monospace">${p.quantidade}</span></td>
         <td>${TIPOS_CORTE[p.tipo_corte]||p.tipo_corte}</td>
         <td>${chapa ? esc(chapa.nome) : '<span style="color:var(--red)">N/A</span>'}</td>
+        <td>${otimo}</td>
         <td><span class="color-dot" style="background:${p.cor||'#888'}"></span></td>
         <td>
           <button class="btn btn-outline" style="padding:4px 10px;font-size:12px" onclick="editPeca('${p.id}')">Editar</button>
@@ -669,7 +681,7 @@ function renderPecasTab() {
     <div class="table-wrap">
       <table>
         <thead><tr>
-          <th>Código</th><th>Comprimento</th><th>Largura</th><th>Qtd</th><th>Tipo Corte</th><th>Chapa</th><th>Cor</th><th>Ações</th>
+          <th>Código</th><th>Comprimento</th><th>Largura</th><th>Qtd</th><th>Tipo Corte</th><th>Chapa</th><th>Ótimo/Chapa</th><th>Cor</th><th>Ações</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
@@ -1146,10 +1158,6 @@ function processTracaRipaML(chapa, pecasGrupo, tipo, chapasUsadas, listaCortes, 
   chapasNeeded.forEach(c => { c.totalChapas = chapasUsadasCount; });
   chapasNeeded.forEach(c => chapasUsadas.push(c));
 
-  // Check stock
-  if (chapasUsadasCount > chapa.qtd_estoque) {
-    showToast(`⚠️ Estoque insuficiente de "${chapa.nome}": necessário ${chapasUsadasCount}, disponível ${chapa.qtd_estoque}`, 'warn');
-  }
 }
 
 function processCorteLibre(chapa, pecasGrupo, chapasUsadas, listaCortes, seqStart) {
@@ -1294,13 +1302,13 @@ function renderPlanoTab() {
   }
 
   // Build chapa filter options
-  let chapaOpts = '<option value="all">Todas</option>';
+  let chapaOpts = '';
   if (hasPlano) {
     const seen = {};
     state.plano.chapasUsadas.forEach((cu, i) => {
       const chapa = state.chapas.find(c => c.id === cu.chapaId);
       const label = chapa ? chapa.nome : cu.chapaId;
-      chapaOpts += `<option value="${i}">Chapa ${cu.chapaIndex} — ${label}</option>`;
+      chapaOpts += `<option value="${i}" ${i===0?'selected':''}>Chapa ${cu.chapaIndex} de ${state.plano.chapasUsadas.length} — ${label}</option>`;
     });
   }
 
@@ -1844,6 +1852,11 @@ function renderExportarTab() {
         <div class="ec-title">Copiar Lista de Cortes</div>
         <div class="ec-desc">Copiar tabela para a área de transferência</div>
       </div>
+      <div class="export-card" onclick="novoProjetoConfirm()" style="border-color:var(--red)">
+        <div class="icon">🗑️</div>
+        <div class="ec-title">Novo Projeto</div>
+        <div class="ec-desc">Limpar todos os dados e recomeçar</div>
+      </div>
     </div>
     <input type="file" id="load-json-input" accept=".json" style="display:none" onchange="carregarProjetoJSON(event)">
     <hr>
@@ -1901,6 +1914,21 @@ function imprimirPlano() {
   if (!state.plano) { showToast('Gere o plano antes de imprimir', 'warn'); return; }
   switchTab('plano');
   setTimeout(() => { window.print(); }, 300);
+}
+
+function novoProjetoConfirm() {
+  openModal(`<div style="text-align:center;padding:8px 0">
+    <div style="font-size:36px;margin-bottom:12px">🗑️</div>
+    <p style="margin-bottom:8px;font-size:16px;font-weight:600">Apagar todos os dados?</p>
+    <p style="color:var(--txt2);font-size:14px">Chapas, peças e plano serão apagados.<br>Esta ação não pode ser desfeita.</p>
+  </div>`, () => {
+    state.chapas = [Object.assign({}, DEFAULT_CHAPA)];
+    state.pecas = [];
+    state.plano = null;
+    saveState();
+    renderTab('chapas');
+    showToast('Projeto limpo. Chapa padrão restaurada.', 'ok');
+  }, 'Confirmar exclusão', 'Apagar Tudo');
 }
 
 function copiarListaCortes() {
