@@ -502,7 +502,7 @@ function renderTab(tab) {
 function renderChapasTab() {
   let rows = '';
   if (state.chapas.length === 0) {
-    rows = `<tr><td colspan="7"><div class="empty-state"><div class="icon">📋</div><p>Nenhuma chapa cadastrada</p></div></td></tr>`;
+    rows = `<tr><td colspan="8"><div class="empty-state"><div class="icon">📋</div><p>Nenhuma chapa cadastrada</p></div></td></tr>`;
   } else {
     state.chapas.forEach(c => {
       rows += `<tr>
@@ -510,6 +510,7 @@ function renderChapasTab() {
         <td><span style="font-family:'IBM Plex Mono',monospace">${c.comprimento}</span> mm</td>
         <td><span style="font-family:'IBM Plex Mono',monospace">${c.largura}</span> mm</td>
         <td><span style="font-family:'IBM Plex Mono',monospace">${c.espessura}</span> mm</td>
+        <td><span style="font-family:'IBM Plex Mono',monospace">${c.kerf_serra}</span> mm</td>
         <td><span style="font-family:'IBM Plex Mono',monospace">${c.qtd_estoque}</span></td>
         <td><span class="color-dot" style="background:${c.cor}"></span></td>
         <td>
@@ -527,7 +528,7 @@ function renderChapasTab() {
     <div class="table-wrap">
       <table>
         <thead><tr>
-          <th>Nome</th><th>Comprimento</th><th>Largura</th><th>Espessura</th><th>Qtd Estoque</th><th>Cor</th><th>Ações</th>
+          <th>Nome</th><th>Comprimento</th><th>Largura</th><th>Espessura</th><th>Kerf Serra</th><th>Qtd Estoque</th><th>Cor</th><th>Ações</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
@@ -1301,12 +1302,25 @@ function renderPlanoTab() {
   // Lista de cortes
   let listaCortesHtml = '';
   if (hasPlano && state.plano.listaCortes.length > 0) {
-    let rows = state.plano.listaCortes.map(l => `
+    // Group equal operations (same operacao + medida + descricao), summing qtd
+    const grouped = [];
+    const groupMap = {};
+    state.plano.listaCortes.forEach(l => {
+      const key = `${l.operacao}|${l.medida}|${l.descricao||''}`;
+      if (groupMap[key] !== undefined) {
+        grouped[groupMap[key]].qtd += l.qtd;
+      } else {
+        groupMap[key] = grouped.length;
+        grouped.push(Object.assign({}, l));
+      }
+    });
+    grouped.forEach((l, i) => { l.seq = i + 1; });
+    let rows = grouped.map(l => `
       <tr>
         <td><span style="font-family:'IBM Plex Mono',monospace">${l.seq}</span></td>
         <td><strong>${esc(l.operacao)}</strong></td>
         <td><span style="font-family:'IBM Plex Mono',monospace">${l.medida} mm</span></td>
-        <td>${l.qtd}</td>
+        <td><span style="font-family:'IBM Plex Mono',monospace">${l.qtd}</span></td>
         <td>${esc(l.descricao||'—')}</td>
       </tr>`).join('');
     listaCortesHtml = `<div class="lista-cortes">
@@ -1591,9 +1605,13 @@ function drawPlan() {
           ctx.fillRect(tx, oy, sobraW - ab, ch_h);
           drawHatch(ctx, tx, oy, sobraW - ab, ch_h);
           if (sobraW > 40) {
-            ctx.font = '10px sans-serif';
-            ctx.fillStyle = 'rgba(255,255,255,0.4)';
-            ctx.fillText(`SOBRA ${(chapa.comprimento - cu.corte_traca).toFixed(0)}mm`, tx + 4, oy + ch_h / 2);
+            const sW_mm = (chapa.comprimento - cu.corte_traca).toFixed(0);
+            const sH_mm = chapa.largura.toFixed(0);
+            ctx.font = 'bold 10px sans-serif';
+            ctx.fillStyle = 'rgba(255,255,255,0.55)';
+            ctx.fillText('SOBRA', tx + 4, oy + ch_h / 2 - 8);
+            ctx.font = '9px monospace';
+            ctx.fillText(`${sW_mm} × ${sH_mm} mm`, tx + 4, oy + ch_h / 2 + 6);
           }
         }
       }
@@ -1606,9 +1624,20 @@ function drawPlan() {
           const sobraY = oy + tirasBottom + chapa.apara_borda * scale;
           const sobraH = ch_h - tirasBottom - chapa.apara_borda * scale;
           if (sobraH > 4) {
+            const sW_px = (cu.corte_traca > 0 ? cu.corte_traca : chapa.comprimento - chapa.apara_borda) * scale - ab;
+            const sH_px = sobraH - ab;
             ctx.fillStyle = 'rgba(0,0,0,0.2)';
-            ctx.fillRect(ox + ab, sobraY, (cu.corte_traca > 0 ? cu.corte_traca : chapa.comprimento - chapa.apara_borda) * scale - ab, sobraH - ab);
-            drawHatch(ctx, ox + ab, sobraY, (cu.corte_traca > 0 ? cu.corte_traca : chapa.comprimento - chapa.apara_borda) * scale - ab, sobraH - ab);
+            ctx.fillRect(ox + ab, sobraY, sW_px, sH_px);
+            drawHatch(ctx, ox + ab, sobraY, sW_px, sH_px);
+            if (sW_px > 60 && sH_px > 16) {
+              const sW_mm = ((cu.corte_traca > 0 ? cu.corte_traca : chapa.comprimento - chapa.apara_borda) - chapa.apara_borda).toFixed(0);
+              const sH_mm = (sH_px / scale).toFixed(0);
+              ctx.font = 'bold 10px sans-serif';
+              ctx.fillStyle = 'rgba(255,255,255,0.55)';
+              ctx.fillText('SOBRA', ox + ab + 4, sobraY + sH_px / 2 - 8);
+              ctx.font = '9px monospace';
+              ctx.fillText(`${sW_mm} × ${sH_mm} mm`, ox + ab + 4, sobraY + sH_px / 2 + 6);
+            }
           }
         }
       }
