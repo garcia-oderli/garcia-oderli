@@ -633,7 +633,7 @@ const TIPOS_CORTE = {
 function renderPecasTab() {
   let rows = '';
   if (state.pecas.length === 0) {
-    rows = `<tr><td colspan="9"><div class="empty-state"><div class="icon">🔩</div><p>Nenhuma peça cadastrada</p></div></td></tr>`;
+    rows = `<tr><td colspan="8"><div class="empty-state"><div class="icon">🔩</div><p>Nenhuma peça cadastrada</p></div></td></tr>`;
   } else {
     state.pecas.forEach(p => {
       const chapa = state.chapas.find(c => c.id === p.chapaId);
@@ -658,10 +658,10 @@ function renderPecasTab() {
           }
         }
       }
+      const esp = chapa ? chapa.espessura : '?';
       rows += `<tr>
         <td><strong>${esc(p.codigo)}</strong></td>
-        <td><span style="font-family:'IBM Plex Mono',monospace">${p.comprimento}</span> mm</td>
-        <td><span style="font-family:'IBM Plex Mono',monospace">${p.largura}</span> mm</td>
+        <td><span style="font-family:'IBM Plex Mono',monospace">${p.comprimento} × ${p.largura} × ${esp}</span> mm</td>
         <td><span style="font-family:'IBM Plex Mono',monospace">${p.quantidade}</span></td>
         <td>${TIPOS_CORTE[p.tipo_corte]||p.tipo_corte}</td>
         <td>${chapa ? esc(chapa.nome) : '<span style="color:var(--red)">N/A</span>'}</td>
@@ -685,7 +685,7 @@ function renderPecasTab() {
     <div class="table-wrap">
       <table>
         <thead><tr>
-          <th>Código</th><th>Comprimento</th><th>Largura</th><th>Qtd</th><th>Tipo Corte</th><th>Chapa</th><th>Ótimo/Chapa</th><th>Cor</th><th>Ações</th>
+          <th>Código</th><th>Dimensões (C × L × E)</th><th>Qtd</th><th>Tipo Corte</th><th>Chapa</th><th>Ótimo/Chapa</th><th>Cor</th><th>Ações</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
@@ -977,7 +977,7 @@ function arrangeStrips(pieces_info, chapa) {
         if (width_used + separator + lt <= largura_util) {
           strips.push({
             pecaId: peca.id, codigo: peca.codigo, N, largura: lt,
-            largura_final: peca.largura, label: labels[label_idx % 26]
+            largura_final: peca.largura, comprimento: peca.comprimento, label: labels[label_idx % 26]
           });
           label_idx++;
           width_used += separator + lt;
@@ -1109,6 +1109,37 @@ function processTracaRipaML(chapa, pecasGrupo, tipo, chapasUsadas, listaCortes, 
       return tira;
     });
 
+    // Pack remaining pieces into the sobra area (right of traça cut)
+    const pecasLivresSobra = [];
+    if (tipo === 'traca_ripa_ml' && corte_traca < chapa.comprimento - chapa.apara_borda) {
+      const sobraW = chapa.comprimento - corte_traca - chapa.apara_borda;
+      const sobraH = chapa.largura - 2 * chapa.apara_borda;
+      let curX = 0, curY = 0, rowH = 0;
+      for (let pi = 0; pi < pending.length; pi++) {
+        const item = pending[pi];
+        if (item.qtd_restante <= 0) continue;
+        const peca = item.peca;
+        let pw = peca.comprimento, ph = peca.largura;
+        if (pw > sobraW && ph <= sobraW) { [pw, ph] = [ph, pw]; } // try rotation
+        if (pw > sobraW || ph > sobraH) continue; // doesn't fit
+        while (item.qtd_restante > 0) {
+          if (curY + ph > sobraH) break;
+          if (curX + pw > sobraW) {
+            curX = 0; curY += rowH + chapa.kerf_serra; rowH = 0;
+            if (curY + ph > sobraH) break;
+          }
+          pecasLivresSobra.push({
+            pecaId: peca.id, codigo: peca.codigo,
+            x: corte_traca + curX, y: chapa.apara_borda + curY,
+            w: pw, h: ph, cor: peca.cor
+          });
+          curX += pw + chapa.kerf_serra;
+          rowH = Math.max(rowH, ph);
+          item.qtd_restante--;
+        }
+      }
+    }
+
     // Compute aproveitamento
     const chapaArea = chapa.comprimento * chapa.largura;
     let usedArea = 0;
@@ -1116,6 +1147,7 @@ function processTracaRipaML(chapa, pecasGrupo, tipo, chapasUsadas, listaCortes, 
       const comprLen = tipo === 'traca_ripa_ml' ? corte_traca : chapa.comprimento;
       usedArea += s.N * s.largura_final * comprLen;
     });
+    pecasLivresSobra.forEach(pl => { usedArea += pl.w * pl.h; });
     const aproveitamento = Math.min(1, usedArea / chapaArea);
     const desperdicio = (chapaArea - usedArea) / 1e6;
 
@@ -1129,7 +1161,7 @@ function processTracaRipaML(chapa, pecasGrupo, tipo, chapasUsadas, listaCortes, 
         operacao: 'RIPA',
         medida: Math.round(s.largura * 10) / 10,
         qtd: 1,
-        descricao: `${s.codigo} (${s.N} pç${s.N > 1 ? 's' : ''})`
+        descricao: `${s.codigo} ${s.comprimento}×${s.largura_final}mm (${s.N} pç${s.N > 1 ? 's' : ''})`
       });
     });
     // Multilâmina cuts
@@ -1140,9 +1172,19 @@ function processTracaRipaML(chapa, pecasGrupo, tipo, chapasUsadas, listaCortes, 
           operacao: 'MULTILÂMINA',
           medida: s.largura_final,
           qtd: 1,
-          descricao: `${s.codigo} — ${s.N} pçs × ${s.largura_final}mm`
+          descricao: `${s.codigo} ${s.comprimento}×${s.largura_final}mm — ${s.N} pçs`
         });
       }
+    });
+    // Cortes diretos na sobra
+    pecasLivresSobra.forEach(pl => {
+      listaCortes.push({
+        seq: listaCortes.length + 1,
+        operacao: 'CORTE SOBRA',
+        medida: pl.w,
+        qtd: 1,
+        descricao: `${pl.codigo} ${pl.w}×${pl.h}mm`
+      });
     });
 
     chapasNeeded.push({
@@ -1150,7 +1192,7 @@ function processTracaRipaML(chapa, pecasGrupo, tipo, chapasUsadas, listaCortes, 
       chapaIndex,
       totalChapas: 0, // will update
       tiras: tirasResult,
-      pecasLivres: [],
+      pecasLivres: pecasLivresSobra,
       aproveitamento,
       desperdicio_m2: Math.max(0, desperdicio),
       corte_traca: tipo === 'traca_ripa_ml' ? corte_traca : 0,
@@ -1286,7 +1328,7 @@ function processNesting2D(chapa, pecasGrupo, chapasUsadas, listaCortes, seqStart
 // ABA PLANO DE CORTE
 // ============================================================
 let canvasZoom = 1.0;
-let currentChapaView = 0; // index into plano.chapasUsadas
+let currentChapaView = 'all'; // 'all' or index into plano.chapasUsadas
 let hitObjects = []; // for mouse interaction
 
 function renderPlanoTab() {
@@ -1309,11 +1351,11 @@ function renderPlanoTab() {
   // Build chapa filter options
   let chapaOpts = '';
   if (hasPlano) {
-    const seen = {};
+    chapaOpts = `<option value="all">Todas as Chapas</option>`;
     state.plano.chapasUsadas.forEach((cu, i) => {
       const chapa = state.chapas.find(c => c.id === cu.chapaId);
       const label = chapa ? chapa.nome : cu.chapaId;
-      chapaOpts += `<option value="${i}" ${i===0?'selected':''}>Chapa ${cu.chapaIndex} de ${state.plano.chapasUsadas.length} — ${label}</option>`;
+      chapaOpts += `<option value="${i}">Chapa ${cu.chapaIndex} de ${state.plano.chapasUsadas.length} — ${label}</option>`;
     });
   }
 
@@ -1753,15 +1795,16 @@ function drawCota(ctx, x1, y1, x2, y2, label, dir, _scale) {
 
 function drawHatch(ctx, x, y, w, h) {
   ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, w, h);
+  ctx.clip();
   ctx.strokeStyle = 'rgba(255,255,255,0.06)';
   ctx.lineWidth = 0.8;
   const step = 10;
   ctx.beginPath();
-  for (let i = 0; i < w + h; i += step) {
+  for (let i = -h; i <= w; i += step) {
     ctx.moveTo(x + i, y);
-    ctx.lineTo(x, y + i);
-    ctx.moveTo(x + i, y + h);
-    ctx.lineTo(x + w, y + i);
+    ctx.lineTo(x + i + h, y + h);
   }
   ctx.stroke();
   ctx.restore();
