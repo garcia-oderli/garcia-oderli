@@ -1315,16 +1315,22 @@ function renderPlanoTab() {
   // Lista de cortes
   let listaCortesHtml = '';
   if (hasPlano && state.plano.listaCortes.length > 0) {
-    // Group equal operations (same operacao + medida + descricao), summing qtd
+    // Normalize operation name: strip "Tira X", "Chapa N" variations
+    const normalizeOp = (op) => op.replace(/\s+Tira\s+[A-Z]+/gi, '').replace(/\bML\b/, 'MULTILÂMINA').trim();
+    const normalizeDesc = (d) => (d || '').replace(/Chapa\s+\d+/gi, '').replace(/\s*,\s*/g, '').trim();
+
+    // Group by normalized operacao + medida + descricao, summing qtd
     const grouped = [];
     const groupMap = {};
     state.plano.listaCortes.forEach(l => {
-      const key = `${l.operacao}|${l.medida}|${l.descricao||''}`;
+      const opNorm = normalizeOp(l.operacao);
+      const descNorm = normalizeDesc(l.descricao);
+      const key = `${opNorm}|${Math.round(l.medida * 10) / 10}|${descNorm}`;
       if (groupMap[key] !== undefined) {
         grouped[groupMap[key]].qtd += l.qtd;
       } else {
         groupMap[key] = grouped.length;
-        grouped.push(Object.assign({}, l));
+        grouped.push(Object.assign({}, l, { operacao: opNorm, descricao: descNorm }));
       }
     });
     grouped.forEach((l, i) => { l.seq = i + 1; });
