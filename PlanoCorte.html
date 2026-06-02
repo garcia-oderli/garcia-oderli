@@ -1,0 +1,1907 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RitmoProd — Plano de Corte</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<style>
+:root {
+  --bg: #111111;
+  --surface: #1C1C1C;
+  --border: #2A2A2A;
+  --accent: #F5A623;
+  --ok: #4CAF50;
+  --warn: #FF9800;
+  --red: #F44336;
+  --txt: #F5F5F5;
+  --txt2: #888888;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--txt);
+  font-family: 'Barlow', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+/* HEADER */
+header {
+  background: var(--surface);
+  border-bottom: 2px solid var(--accent);
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.logo {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 700;
+  font-size: 28px;
+  color: var(--accent);
+  letter-spacing: 1px;
+}
+.logo-sub {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--txt2);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+/* TABS */
+.tab-bar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  padding: 0 24px;
+  gap: 0;
+}
+.tab-btn {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--txt2);
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  padding: 12px 20px;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+.tab-btn:hover { color: var(--txt); }
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+/* CONTENT */
+#content { padding: 24px; min-height: calc(100vh - 120px); }
+/* BUTTONS */
+.btn {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn:hover { opacity: 0.85; }
+.btn:active { transform: scale(0.97); }
+.btn-accent { background: var(--accent); color: #111; }
+.btn-surface { background: var(--border); color: var(--txt); }
+.btn-ok { background: var(--ok); color: #fff; }
+.btn-red { background: var(--red); color: #fff; }
+.btn-warn { background: var(--warn); color: #111; }
+.btn-outline { background: none; border: 1px solid var(--border); color: var(--txt2); }
+.btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+/* TABLES */
+.table-wrap { overflow-x: auto; border-radius: 6px; border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; }
+thead th {
+  background: var(--border);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--txt2);
+  padding: 10px 12px;
+  text-align: left;
+  white-space: nowrap;
+}
+tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
+tbody tr:hover { background: rgba(255,255,255,0.03); }
+tbody tr:last-child { border-bottom: none; }
+tbody td { padding: 9px 12px; font-size: 13px; vertical-align: middle; }
+.color-dot { display: inline-block; width: 16px; height: 16px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.2); vertical-align: middle; }
+/* FORMS */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-group.full { grid-column: 1 / -1; }
+label {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--txt2);
+}
+input[type=text], input[type=number], select, textarea {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--txt);
+  font-family: 'Barlow', sans-serif;
+  font-size: 14px;
+  padding: 8px 10px;
+  width: 100%;
+  transition: border-color 0.2s;
+  outline: none;
+}
+input[type=text]:focus, input[type=number]:focus, select:focus { border-color: var(--accent); }
+input[type=color] {
+  width: 40px; height: 34px; padding: 2px; border-radius: 4px;
+  border: 1px solid var(--border); background: var(--bg); cursor: pointer;
+}
+select option { background: var(--surface); }
+.radio-group { display: flex; gap: 16px; align-items: center; }
+.radio-group label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; text-transform: none; letter-spacing: 0; color: var(--txt); cursor: pointer;
+}
+.radio-group input[type=radio] { accent-color: var(--accent); }
+/* MODAL */
+#modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.75); z-index: 1000;
+  align-items: center; justify-content: center;
+}
+#modal-overlay.open { display: flex; }
+.modal-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px;
+  max-width: 600px;
+  width: 95%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.modal-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--accent);
+  margin-bottom: 20px;
+}
+.modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+/* TOAST */
+#toast-container {
+  position: fixed; top: 16px; right: 16px;
+  z-index: 2000; display: flex; flex-direction: column; gap: 8px;
+  pointer-events: none;
+}
+.toast {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--warn);
+  border-radius: 6px;
+  padding: 12px 16px;
+  font-size: 13px;
+  max-width: 320px;
+  pointer-events: all;
+  animation: toastIn 0.3s ease;
+  display: flex; align-items: flex-start; gap: 8px;
+}
+.toast.ok { border-left-color: var(--ok); }
+.toast.error { border-left-color: var(--red); }
+.toast.info { border-left-color: #2196F3; }
+@keyframes toastIn { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: none; } }
+/* KPI CARDS */
+.kpi-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+.kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 18px;
+  min-width: 140px;
+  flex: 1;
+}
+.kpi-label {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--txt2);
+  margin-bottom: 4px;
+}
+.kpi-value {
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  font-size: 22px;
+  color: var(--accent);
+}
+.kpi-value.ok { color: var(--ok); }
+.kpi-value.warn { color: var(--warn); }
+/* CANVAS AREA */
+.plan-layout { display: flex; gap: 16px; align-items: flex-start; }
+.canvas-wrap {
+  flex: 1; background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px; overflow: hidden;
+  position: relative;
+}
+#plan-canvas { display: block; width: 100%; cursor: crosshair; }
+#canvas-tooltip {
+  position: fixed; background: rgba(28,28,28,0.95);
+  border: 1px solid var(--accent); border-radius: 4px;
+  padding: 8px 12px; font-size: 12px; pointer-events: none;
+  z-index: 500; display: none; max-width: 200px;
+}
+.detail-panel {
+  width: 220px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 16px; flex-shrink: 0;
+}
+.detail-panel h3 {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 700; font-size: 14px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--txt2);
+  margin-bottom: 12px;
+}
+.detail-row { margin-bottom: 8px; }
+.detail-key {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.5px; text-transform: uppercase;
+  color: var(--txt2);
+}
+.detail-val {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px; color: var(--txt);
+}
+/* CONTROLS */
+.controls-row {
+  display: flex; gap: 10px; align-items: center;
+  flex-wrap: wrap; margin-bottom: 16px;
+}
+.controls-row select, .controls-row input { width: auto; }
+/* LISTA CORTES */
+.lista-cortes { margin-top: 24px; }
+.section-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 700; font-size: 18px; letter-spacing: 0.5px;
+  color: var(--txt); margin-bottom: 12px;
+  border-bottom: 1px solid var(--border); padding-bottom: 8px;
+}
+/* EXPORT TAB */
+.export-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+.export-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 20px 16px; text-align: center;
+  cursor: pointer; transition: border-color 0.2s, transform 0.1s;
+}
+.export-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.export-card .icon { font-size: 32px; margin-bottom: 10px; }
+.export-card .ec-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 700; font-size: 16px; margin-bottom: 4px;
+}
+.export-card .ec-desc { font-size: 12px; color: var(--txt2); }
+/* SECTION HEADER */
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+.section-header h2 {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 700; font-size: 22px; letter-spacing: 0.5px;
+}
+/* PROGRESS / STATUS */
+.status-badge {
+  display: inline-block; padding: 2px 8px;
+  border-radius: 3px; font-size: 11px; font-weight: 600;
+  font-family: 'Barlow Condensed', sans-serif;
+  letter-spacing: 0.5px; text-transform: uppercase;
+}
+.badge-ok { background: rgba(76,175,80,0.15); color: var(--ok); border: 1px solid rgba(76,175,80,0.3); }
+.badge-warn { background: rgba(255,152,0,0.15); color: var(--warn); border: 1px solid rgba(255,152,0,0.3); }
+.badge-red { background: rgba(244,67,54,0.15); color: var(--red); border: 1px solid rgba(244,67,54,0.3); }
+/* CHAPA NAV */
+.chapa-nav {
+  display: flex; gap: 6px; align-items: center;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 4px; padding: 4px 8px;
+}
+.chapa-nav span {
+  font-family: 'IBM Plex Mono', monospace; font-size: 13px;
+}
+/* EMPTY STATE */
+.empty-state {
+  text-align: center; padding: 60px 20px; color: var(--txt2);
+}
+.empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+.empty-state p { font-size: 15px; }
+/* IMPORT PREVIEW */
+.import-preview { overflow: auto; max-height: 300px; }
+.import-preview table { font-size: 12px; }
+/* DIVIDER */
+hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+/* PRINT */
+@media print {
+  body { background: white !important; color: black !important; }
+  .no-print { display: none !important; }
+  header, .tab-bar, .controls-row, .detail-panel { display: none !important; }
+  #content { padding: 0 !important; }
+  canvas { max-width: 100% !important; page-break-after: always; }
+  .lista-cortes { page-break-before: always; }
+  table { border-collapse: collapse; }
+  th, td { border: 1px solid #ccc !important; color: black !important; }
+  thead th { background: #eee !important; color: black !important; }
+}
+</style>
+</head>
+<body>
+
+<header class="no-print">
+  <div>
+    <div class="logo">RitmoProd</div>
+    <div class="logo-sub">Plano de Corte</div>
+  </div>
+</header>
+
+<div class="tab-bar no-print">
+  <button class="tab-btn active" onclick="switchTab('chapas')">Chapas</button>
+  <button class="tab-btn" onclick="switchTab('pecas')">Peças</button>
+  <button class="tab-btn" onclick="switchTab('plano')">Plano de Corte</button>
+  <button class="tab-btn" onclick="switchTab('exportar')">Exportar</button>
+</div>
+
+<div id="content"></div>
+<div id="toast-container"></div>
+<div id="modal-overlay">
+  <div class="modal-card" id="modal-card"></div>
+</div>
+<div id="canvas-tooltip"></div>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+let state = {
+  chapas: [],
+  pecas: [],
+  plano: null,
+  activeTab: 'chapas'
+};
+
+const DEFAULT_CHAPA = {
+  id: 'c1',
+  nome: 'MDF 15mm',
+  comprimento: 2750,
+  largura: 1850,
+  espessura: 15,
+  kerf_serra: 3.2,
+  kerf_ml: 3.2,
+  boca_ml: 700,
+  oversize_ml: 3,
+  apara_borda: 5,
+  qtd_estoque: 10,
+  cor: '#1e4a7a'
+};
+
+function saveState() {
+  try { localStorage.setItem('ritmoprod_state', JSON.stringify(state)); } catch(e) {}
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem('ritmoprod_state');
+    if (raw) {
+      const s = JSON.parse(raw);
+      state.chapas = s.chapas || [];
+      state.pecas = s.pecas || [];
+      state.plano = s.plano || null;
+    }
+  } catch(e) {}
+  if (state.chapas.length === 0) state.chapas.push({...DEFAULT_CHAPA});
+}
+
+function genId(prefix) {
+  return prefix + '_' + Math.random().toString(36).slice(2, 9);
+}
+
+// ============================================================
+// COLOR GENERATION
+// ============================================================
+const VIVID_COLORS = [
+  '#E53935','#8E24AA','#1E88E5','#00ACC1','#43A047',
+  '#F4511E','#6D4C41','#039BE5','#00897B','#7CB342',
+  '#FB8C00','#3949AB','#D81B60','#00BCD4','#CDDC39',
+  '#FF5722','#9C27B0','#2196F3','#009688','#8BC34A'
+];
+let colorIdx = 0;
+function nextColor() {
+  const c = VIVID_COLORS[colorIdx % VIVID_COLORS.length];
+  colorIdx++;
+  return c;
+}
+
+// ============================================================
+// TOAST
+// ============================================================
+function showToast(msg, type = 'warn') {
+  const icons = { warn: '⚠️', ok: '✅', error: '❌', info: 'ℹ️' };
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.innerHTML = `<span>${icons[type] || '⚠️'}</span><span>${msg}</span>`;
+  const tc = document.getElementById('toast-container');
+  tc.appendChild(el);
+  setTimeout(() => { el.style.transition = 'opacity 0.4s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 400); }, 4000);
+}
+
+// ============================================================
+// MODAL
+// ============================================================
+let modalConfirmCb = null;
+function openModal(html, onConfirm, title, confirmText = 'Confirmar', wide = false) {
+  modalConfirmCb = onConfirm;
+  const card = document.getElementById('modal-card');
+  card.style.maxWidth = wide ? '800px' : '600px';
+  card.innerHTML = `
+    <div class="modal-title">${title || ''}</div>
+    <div id="modal-body">${html}</div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+      ${onConfirm ? `<button class="btn btn-accent" onclick="modalConfirm()">${confirmText}</button>` : ''}
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  modalConfirmCb = null;
+}
+function modalConfirm() {
+  if (modalConfirmCb) modalConfirmCb();
+}
+document.getElementById('modal-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// ============================================================
+// TAB SWITCHING
+// ============================================================
+function switchTab(tab) {
+  state.activeTab = tab;
+  document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    const tabs = ['chapas','pecas','plano','exportar'];
+    b.classList.toggle('active', tabs[i] === tab);
+  });
+  renderTab(tab);
+}
+
+function renderTab(tab) {
+  const c = document.getElementById('content');
+  if (tab === 'chapas') c.innerHTML = renderChapasTab();
+  else if (tab === 'pecas') c.innerHTML = renderPecasTab();
+  else if (tab === 'plano') { c.innerHTML = renderPlanoTab(); setupCanvas(); }
+  else if (tab === 'exportar') c.innerHTML = renderExportarTab();
+}
+
+// ============================================================
+// ABA CHAPAS
+// ============================================================
+function renderChapasTab() {
+  let rows = '';
+  if (state.chapas.length === 0) {
+    rows = `<tr><td colspan="7"><div class="empty-state"><div class="icon">📋</div><p>Nenhuma chapa cadastrada</p></div></td></tr>`;
+  } else {
+    state.chapas.forEach(c => {
+      rows += `<tr>
+        <td><strong>${esc(c.nome)}</strong></td>
+        <td><span style="font-family:'IBM Plex Mono',monospace">${c.comprimento}</span> mm</td>
+        <td><span style="font-family:'IBM Plex Mono',monospace">${c.largura}</span> mm</td>
+        <td><span style="font-family:'IBM Plex Mono',monospace">${c.espessura}</span> mm</td>
+        <td><span style="font-family:'IBM Plex Mono',monospace">${c.qtd_estoque}</span></td>
+        <td><span class="color-dot" style="background:${c.cor}"></span></td>
+        <td>
+          <button class="btn btn-outline" style="padding:4px 10px;font-size:12px" onclick="editChapa('${c.id}')">Editar</button>
+          <button class="btn btn-red" style="padding:4px 10px;font-size:12px;margin-left:4px" onclick="removeChapa('${c.id}')">Remover</button>
+        </td>
+      </tr>`;
+    });
+  }
+  return `
+    <div class="section-header">
+      <h2>Chapas</h2>
+      <button class="btn btn-accent" onclick="addChapa()">+ Adicionar Chapa</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Nome</th><th>Comprimento</th><th>Largura</th><th>Espessura</th><th>Qtd Estoque</th><th>Cor</th><th>Ações</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function chapaFormHTML(c) {
+  const v = c || {};
+  return `<div class="form-grid">
+    <div class="form-group full">
+      <label>Nome</label>
+      <input type="text" id="f_nome" value="${esc(v.nome||'')}">
+    </div>
+    <div class="form-group">
+      <label>Comprimento (mm)</label>
+      <input type="number" id="f_comprimento" value="${v.comprimento||2750}" min="1">
+    </div>
+    <div class="form-group">
+      <label>Largura (mm)</label>
+      <input type="number" id="f_largura" value="${v.largura||1850}" min="1">
+    </div>
+    <div class="form-group">
+      <label>Espessura (mm)</label>
+      <input type="number" id="f_espessura" value="${v.espessura||15}" min="1">
+    </div>
+    <div class="form-group">
+      <label>Qtd em Estoque</label>
+      <input type="number" id="f_qtd_estoque" value="${v.qtd_estoque||1}" min="0">
+    </div>
+    <div class="form-group">
+      <label>Kerf Serra (mm)</label>
+      <input type="number" id="f_kerf_serra" value="${v.kerf_serra||3.2}" step="0.1" min="0">
+    </div>
+    <div class="form-group">
+      <label>Kerf Multilâmina (mm)</label>
+      <input type="number" id="f_kerf_ml" value="${v.kerf_ml||3.2}" step="0.1" min="0">
+    </div>
+    <div class="form-group">
+      <label>Boca Multilâmina Máx (mm)</label>
+      <input type="number" id="f_boca_ml" value="${v.boca_ml||700}" min="1">
+    </div>
+    <div class="form-group">
+      <label>Oversize Multilâmina (mm)</label>
+      <input type="number" id="f_oversize_ml" value="${v.oversize_ml||3}" step="0.1" min="0">
+    </div>
+    <div class="form-group">
+      <label>Apara de Borda (mm)</label>
+      <input type="number" id="f_apara_borda" value="${v.apara_borda||5}" min="0">
+    </div>
+    <div class="form-group">
+      <label>Cor</label>
+      <input type="color" id="f_cor" value="${v.cor||'#1e4a7a'}">
+    </div>
+  </div>`;
+}
+
+function addChapa() {
+  openModal(chapaFormHTML(null), () => {
+    const nome = gv('f_nome').trim();
+    if (!nome) { showToast('Informe o nome da chapa', 'warn'); return; }
+    const chapa = {
+      id: genId('c'),
+      nome, comprimento: +gv('f_comprimento'), largura: +gv('f_largura'),
+      espessura: +gv('f_espessura'), kerf_serra: +gv('f_kerf_serra'),
+      kerf_ml: +gv('f_kerf_ml'), boca_ml: +gv('f_boca_ml'),
+      oversize_ml: +gv('f_oversize_ml'), apara_borda: +gv('f_apara_borda'),
+      qtd_estoque: +gv('f_qtd_estoque'), cor: gv('f_cor')
+    };
+    state.chapas.push(chapa);
+    saveState(); closeModal(); renderTab('chapas');
+    showToast('Chapa adicionada', 'ok');
+  }, 'Adicionar Chapa');
+}
+
+function editChapa(id) {
+  const c = state.chapas.find(x => x.id === id);
+  if (!c) return;
+  openModal(chapaFormHTML(c), () => {
+    c.nome = gv('f_nome').trim() || c.nome;
+    c.comprimento = +gv('f_comprimento'); c.largura = +gv('f_largura');
+    c.espessura = +gv('f_espessura'); c.kerf_serra = +gv('f_kerf_serra');
+    c.kerf_ml = +gv('f_kerf_ml'); c.boca_ml = +gv('f_boca_ml');
+    c.oversize_ml = +gv('f_oversize_ml'); c.apara_borda = +gv('f_apara_borda');
+    c.qtd_estoque = +gv('f_qtd_estoque'); c.cor = gv('f_cor');
+    saveState(); closeModal(); renderTab('chapas');
+    showToast('Chapa atualizada', 'ok');
+  }, 'Editar Chapa');
+}
+
+function removeChapa(id) {
+  const inUse = state.pecas.some(p => p.chapaId === id);
+  if (inUse) { showToast('Esta chapa está em uso por peças cadastradas', 'warn'); return; }
+  state.chapas = state.chapas.filter(c => c.id !== id);
+  saveState(); renderTab('chapas');
+  showToast('Chapa removida', 'ok');
+}
+
+// ============================================================
+// ABA PEÇAS
+// ============================================================
+const TIPOS_CORTE = {
+  'traca_ripa_ml': 'Traça + Ripagem + Multilâmina',
+  'ripa_ml': 'Ripagem + Multilâmina',
+  'corte_livre': 'Corte Livre',
+  'nesting_2d': 'Nesting 2D'
+};
+
+function renderPecasTab() {
+  let rows = '';
+  if (state.pecas.length === 0) {
+    rows = `<tr><td colspan="8"><div class="empty-state"><div class="icon">🔩</div><p>Nenhuma peça cadastrada</p></div></td></tr>`;
+  } else {
+    state.pecas.forEach(p => {
+      const chapa = state.chapas.find(c => c.id === p.chapaId);
+      rows += `<tr>
+        <td><strong>${esc(p.codigo)}</strong></td>
+        <td><span style="font-family:'IBM Plex Mono',monospace">${p.comprimento}</span> mm</td>
+        <td><span style="font-family:'IBM Plex Mono',monospace">${p.largura}</span> mm</td>
+        <td><span style="font-family:'IBM Plex Mono',monospace">${p.quantidade}</span></td>
+        <td>${TIPOS_CORTE[p.tipo_corte]||p.tipo_corte}</td>
+        <td>${chapa ? esc(chapa.nome) : '<span style="color:var(--red)">N/A</span>'}</td>
+        <td><span class="color-dot" style="background:${p.cor||'#888'}"></span></td>
+        <td>
+          <button class="btn btn-outline" style="padding:4px 10px;font-size:12px" onclick="editPeca('${p.id}')">Editar</button>
+          <button class="btn btn-red" style="padding:4px 10px;font-size:12px;margin-left:4px" onclick="removePeca('${p.id}')">Remover</button>
+        </td>
+      </tr>`;
+    });
+  }
+  return `
+    <div class="section-header">
+      <h2>Peças</h2>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-surface" onclick="importPecas()">📥 Importar CSV/Excel</button>
+        <button class="btn btn-accent" onclick="addPeca()">+ Adicionar Peça</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Código</th><th>Comprimento</th><th>Largura</th><th>Qtd</th><th>Tipo Corte</th><th>Chapa</th><th>Cor</th><th>Ações</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function pecaFormHTML(p) {
+  const v = p || {};
+  const chapaOpts = state.chapas.map(c =>
+    `<option value="${c.id}" ${v.chapaId===c.id?'selected':''}>${esc(c.nome)}</option>`
+  ).join('');
+  const tipoOpts = Object.entries(TIPOS_CORTE).map(([k, lbl]) =>
+    `<option value="${k}" ${v.tipo_corte===k?'selected':''}>${lbl}</option>`
+  ).join('');
+  const dir = v.direcao_fio || 'paralelo';
+  return `<div class="form-grid">
+    <div class="form-group full">
+      <label>Código / Nome</label>
+      <input type="text" id="f_codigo" value="${esc(v.codigo||'')}">
+    </div>
+    <div class="form-group">
+      <label>Comprimento Final (mm)</label>
+      <input type="number" id="f_comp" value="${v.comprimento||300}" min="1">
+    </div>
+    <div class="form-group">
+      <label>Largura Final (mm)</label>
+      <input type="number" id="f_larg" value="${v.largura||100}" min="1">
+    </div>
+    <div class="form-group">
+      <label>Quantidade</label>
+      <input type="number" id="f_qtd" value="${v.quantidade||1}" min="1">
+    </div>
+    <div class="form-group">
+      <label>Tipo de Corte</label>
+      <select id="f_tipo">${tipoOpts}</select>
+    </div>
+    <div class="form-group">
+      <label>Chapa</label>
+      <select id="f_chapa">${chapaOpts}</select>
+    </div>
+    <div class="form-group full">
+      <label>Direção do Fio</label>
+      <div class="radio-group">
+        <label><input type="radio" name="direcao" value="paralelo" ${dir==='paralelo'?'checked':''}> Paralelo</label>
+        <label><input type="radio" name="direcao" value="perpendicular" ${dir==='perpendicular'?'checked':''}> Perpendicular</label>
+        <label><input type="radio" name="direcao" value="livre" ${dir==='livre'?'checked':''}> Livre</label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Cor</label>
+      <input type="color" id="f_cor_peca" value="${v.cor||nextColor()}">
+    </div>
+  </div>`;
+}
+
+function addPeca() {
+  if (state.chapas.length === 0) { showToast('Cadastre ao menos uma chapa antes de adicionar peças', 'warn'); return; }
+  const autoColor = nextColor();
+  openModal(pecaFormHTML({cor: autoColor}), () => {
+    const codigo = gv('f_codigo').trim();
+    if (!codigo) { showToast('Informe o código/nome da peça', 'warn'); return; }
+    const chapaId = gv('f_chapa');
+    const chapa = state.chapas.find(c => c.id === chapaId);
+    const comp = +gv('f_comp'), larg = +gv('f_larg');
+    if (chapa && (comp > chapa.comprimento || larg > chapa.largura)) {
+      showToast('⚠️ Peça maior que a chapa selecionada', 'warn');
+    }
+    const dir = document.querySelector('input[name="direcao"]:checked');
+    const peca = {
+      id: genId('p'), codigo, comprimento: comp, largura: larg,
+      quantidade: +gv('f_qtd'), tipo_corte: gv('f_tipo'),
+      chapaId, direcao_fio: dir ? dir.value : 'paralelo',
+      cor: gv('f_cor_peca')
+    };
+    state.pecas.push(peca);
+    saveState(); closeModal(); renderTab('pecas');
+    showToast('Peça adicionada', 'ok');
+  }, 'Adicionar Peça');
+}
+
+function editPeca(id) {
+  const p = state.pecas.find(x => x.id === id);
+  if (!p) return;
+  openModal(pecaFormHTML(p), () => {
+    p.codigo = gv('f_codigo').trim() || p.codigo;
+    p.comprimento = +gv('f_comp'); p.largura = +gv('f_larg');
+    p.quantidade = +gv('f_qtd'); p.tipo_corte = gv('f_tipo');
+    p.chapaId = gv('f_chapa'); p.cor = gv('f_cor_peca');
+    const dir = document.querySelector('input[name="direcao"]:checked');
+    p.direcao_fio = dir ? dir.value : 'paralelo';
+    saveState(); closeModal(); renderTab('pecas');
+    showToast('Peça atualizada', 'ok');
+  }, 'Editar Peça');
+}
+
+function removePeca(id) {
+  state.pecas = state.pecas.filter(p => p.id !== id);
+  saveState(); renderTab('pecas');
+  showToast('Peça removida', 'ok');
+}
+
+// ============================================================
+// IMPORT CSV/EXCEL
+// ============================================================
+function importPecas() {
+  const html = `
+    <p style="color:var(--txt2);margin-bottom:14px">Selecione um arquivo .xlsx ou .csv. Colunas esperadas: <code>codigo, comprimento, largura, quantidade, tipo_corte, chapa</code></p>
+    <input type="file" id="import-file" accept=".xlsx,.xls,.csv" style="color:var(--txt);margin-bottom:14px">
+    <div id="import-preview"></div>`;
+  openModal(html, null, 'Importar Peças (CSV / Excel)');
+  setTimeout(() => {
+    const fi = document.getElementById('import-file');
+    if (fi) fi.addEventListener('change', handleImportFile);
+  }, 100);
+}
+
+let importRows = [];
+function handleImportFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      let wb;
+      if (file.name.endsWith('.csv')) {
+        wb = XLSX.read(ev.target.result, { type: 'string' });
+      } else {
+        wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
+      }
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      if (data.length < 2) { showToast('Arquivo vazio ou inválido', 'error'); return; }
+      const headers = data[0].map(h => String(h).toLowerCase().trim()
+        .replace(/[àáâãä]/g,'a').replace(/[èéêë]/g,'e').replace(/[ìíîï]/g,'i')
+        .replace(/[òóôõö]/g,'o').replace(/[ùúûü]/g,'u').replace(/ç/g,'c'));
+      const colMap = {};
+      const ALIASES = {
+        codigo: ['codigo','code','nome','name','peca','referencia','ref'],
+        comprimento: ['comprimento','comp','length','compr','c'],
+        largura: ['largura','larg','width','l'],
+        quantidade: ['quantidade','qtd','qty','quant','q'],
+        tipo_corte: ['tipo_corte','tipo','type','cut_type','corte'],
+        chapa: ['chapa','board','material','mat']
+      };
+      for (const [field, aliases] of Object.entries(ALIASES)) {
+        for (let i = 0; i < headers.length; i++) {
+          if (aliases.some(a => headers[i].includes(a))) {
+            colMap[field] = i; break;
+          }
+        }
+      }
+      const missing = Object.keys(ALIASES).filter(k => colMap[k] === undefined && k !== 'tipo_corte' && k !== 'chapa');
+      if (missing.length > 0) {
+        showColumnMappingUI(headers, data, colMap, ALIASES, missing);
+        return;
+      }
+      importRows = data.slice(1).filter(r => r.some(c => c !== '')).map(r => ({
+        codigo: String(r[colMap.codigo]||'').trim(),
+        comprimento: parseFloat(r[colMap.comprimento])||0,
+        largura: parseFloat(r[colMap.largura])||0,
+        quantidade: parseInt(r[colMap.quantidade])||1,
+        tipo_corte: colMap.tipo_corte !== undefined ? normalTipoCorte(String(r[colMap.tipo_corte]||'')) : 'corte_livre',
+        chapa_nome: colMap.chapa !== undefined ? String(r[colMap.chapa]||'').trim() : ''
+      })).filter(r => r.codigo && r.comprimento > 0 && r.largura > 0);
+      showImportPreview(importRows);
+    } catch(err) {
+      showToast('Erro ao ler arquivo: ' + err.message, 'error');
+    }
+  };
+  if (file.name.endsWith('.csv')) reader.readAsText(file, 'UTF-8');
+  else reader.readAsArrayBuffer(file);
+}
+
+function normalTipoCorte(s) {
+  const l = s.toLowerCase();
+  if (l.includes('traca') || l.includes('traça') || l.includes('multilam')) return 'traca_ripa_ml';
+  if (l.includes('ripa')) return 'ripa_ml';
+  if (l.includes('nesting') || l.includes('2d')) return 'nesting_2d';
+  return 'corte_livre';
+}
+
+function showColumnMappingUI(headers, data, colMap, ALIASES, missing) {
+  const optHtml = headers.map((h,i) => `<option value="${i}">${h}</option>`).join('');
+  let mapHtml = missing.map(field => `
+    <div class="form-group">
+      <label>${field}</label>
+      <select id="map_${field}">${optHtml}</select>
+    </div>`).join('');
+  const prev = document.getElementById('import-preview');
+  if (prev) prev.innerHTML = `
+    <p style="color:var(--warn);margin-bottom:10px">Algumas colunas não foram detectadas automaticamente. Mapeie manualmente:</p>
+    <div class="form-grid">${mapHtml}</div>
+    <button class="btn btn-accent" style="margin-top:14px" onclick="applyManualMapping(${JSON.stringify(headers)},${JSON.stringify(missing)})">Aplicar Mapeamento</button>`;
+  window._importData = data;
+  window._importColMap = colMap;
+}
+
+function applyManualMapping(headers, missing) {
+  const colMap = window._importColMap || {};
+  missing.forEach(field => {
+    const el = document.getElementById('map_' + field);
+    if (el) colMap[field] = parseInt(el.value);
+  });
+  const data = window._importData || [];
+  importRows = data.slice(1).filter(r => r.some(c => c !== '')).map(r => ({
+    codigo: String(r[colMap.codigo]||'').trim(),
+    comprimento: parseFloat(r[colMap.comprimento])||0,
+    largura: parseFloat(r[colMap.largura])||0,
+    quantidade: parseInt(r[colMap.quantidade])||1,
+    tipo_corte: colMap.tipo_corte !== undefined ? normalTipoCorte(String(r[colMap.tipo_corte]||'')) : 'corte_livre',
+    chapa_nome: colMap.chapa !== undefined ? String(r[colMap.chapa]||'').trim() : ''
+  })).filter(r => r.codigo && r.comprimento > 0 && r.largura > 0);
+  showImportPreview(importRows);
+}
+
+function showImportPreview(rows) {
+  const prev = document.getElementById('import-preview');
+  if (!prev) return;
+  if (rows.length === 0) { prev.innerHTML = '<p style="color:var(--red)">Nenhuma linha válida encontrada</p>'; return; }
+  let html = `<p style="color:var(--ok);margin-bottom:8px">${rows.length} linha(s) encontrada(s)</p>
+    <div class="import-preview"><table>
+    <thead><tr><th>Código</th><th>Comp</th><th>Larg</th><th>Qtd</th><th>Tipo</th><th>Chapa</th></tr></thead>
+    <tbody>`;
+  rows.slice(0, 20).forEach(r => {
+    html += `<tr><td>${esc(r.codigo)}</td><td>${r.comprimento}</td><td>${r.largura}</td><td>${r.quantidade}</td><td>${TIPOS_CORTE[r.tipo_corte]||r.tipo_corte}</td><td>${esc(r.chapa_nome)}</td></tr>`;
+  });
+  if (rows.length > 20) html += `<tr><td colspan="6" style="color:var(--txt2)">... e mais ${rows.length-20} linha(s)</td></tr>`;
+  html += '</tbody></table></div>';
+  html += `<button class="btn btn-accent" style="margin-top:14px" onclick="confirmImport()">Importar ${rows.length} Peça(s)</button>`;
+  prev.innerHTML = html;
+}
+
+function confirmImport() {
+  if (!importRows || importRows.length === 0) { showToast('Nenhuma linha para importar', 'warn'); return; }
+  let added = 0, warned = 0;
+  importRows.forEach(r => {
+    let chapaId = state.chapas.length > 0 ? state.chapas[0].id : null;
+    if (r.chapa_nome) {
+      const found = state.chapas.find(c => c.nome.toLowerCase().includes(r.chapa_nome.toLowerCase()));
+      if (found) chapaId = found.id;
+    }
+    if (!chapaId) { warned++; return; }
+    state.pecas.push({
+      id: genId('p'), codigo: r.codigo, comprimento: r.comprimento, largura: r.largura,
+      quantidade: r.quantidade, tipo_corte: r.tipo_corte, chapaId,
+      direcao_fio: 'paralelo', cor: nextColor()
+    });
+    added++;
+  });
+  saveState(); closeModal(); renderTab('pecas');
+  showToast(`${added} peça(s) importada(s)` + (warned > 0 ? `. ${warned} ignorada(s) (chapa não encontrada)` : ''), added > 0 ? 'ok' : 'warn');
+}
+
+// ============================================================
+// ALGORITHMS
+// ============================================================
+function calcNMax(largura_final, boca_ml, oversize_ml, kerf_ml) {
+  return Math.max(1, Math.floor((boca_ml - oversize_ml + kerf_ml) / (largura_final + kerf_ml)));
+}
+function larguraTira(N, largura_final, kerf_ml, oversize_ml) {
+  return N * largura_final + (N - 1) * kerf_ml + oversize_ml;
+}
+
+// Arrange strips on a chapa width using FFD
+function arrangeStrips(pieces_info, chapa) {
+  // pieces_info: [{peca, qtd_restante}]
+  // Returns array of strips placed on ONE chapa, each strip = {pecaId, N, larguraTira, label}
+  const largura_util = chapa.largura - 2 * chapa.apara_borda;
+  let strips = [];
+  let width_used = 0;
+  let label_idx = 0;
+  const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+  const pending = pieces_info.map(pi => ({...pi}));
+
+  for (let pi = 0; pi < pending.length; pi++) {
+    const item = pending[pi];
+    if (item.qtd_restante <= 0) continue;
+    const peca = item.peca;
+    const N_max = calcNMax(peca.largura, chapa.boca_ml, chapa.oversize_ml, chapa.kerf_ml);
+    // Try N from N_max down to 1
+    for (let N = Math.min(N_max, item.qtd_restante); N >= 1; N--) {
+      const lt = larguraTira(N, peca.largura, chapa.kerf_ml, chapa.oversize_ml);
+      const separator = strips.length > 0 ? chapa.kerf_serra : 0;
+      if (width_used + separator + lt <= largura_util) {
+        strips.push({
+          pecaId: peca.id, codigo: peca.codigo, N, largura: lt,
+          largura_final: peca.largura, label: labels[label_idx % 26]
+        });
+        label_idx++;
+        width_used += separator + lt;
+        item.qtd_restante -= N;
+        break;
+      }
+    }
+  }
+  return { strips, width_used };
+}
+
+function gerarPlano() {
+  if (state.pecas.length === 0) { showToast('Nenhuma peça cadastrada', 'warn'); return null; }
+  if (state.chapas.length === 0) { showToast('Nenhuma chapa cadastrada', 'warn'); return null; }
+
+  const chapasUsadas = [];
+  let seqCorte = 0;
+  const listaCortes = [];
+  let totalPecas = 0;
+  let totalCortesSerra = 0;
+
+  // Group pieces by chapaId and tipo_corte
+  const grupos = {};
+  state.pecas.forEach(p => {
+    const key = p.chapaId + '|' + p.tipo_corte;
+    if (!grupos[key]) grupos[key] = [];
+    grupos[key].push(p);
+  });
+
+  for (const key of Object.keys(grupos)) {
+    const [chapaId, tipo] = key.split('|');
+    const chapa = state.chapas.find(c => c.id === chapaId);
+    if (!chapa) { showToast(`Chapa não encontrada para grupo ${key}`, 'warn'); continue; }
+    const pecasGrupo = grupos[key];
+
+    if (tipo === 'traca_ripa_ml' || tipo === 'ripa_ml') {
+      processTracaRipaML(chapa, pecasGrupo, tipo, chapasUsadas, listaCortes, (n) => { seqCorte = n; }, seqCorte);
+      seqCorte = listaCortes.length;
+    } else if (tipo === 'corte_livre') {
+      processCorteLibre(chapa, pecasGrupo, chapasUsadas, listaCortes, seqCorte);
+      seqCorte = listaCortes.length;
+    } else if (tipo === 'nesting_2d') {
+      processNesting2D(chapa, pecasGrupo, chapasUsadas, listaCortes, seqCorte);
+      seqCorte = listaCortes.length;
+    }
+  }
+
+  // Compute totals
+  let totalChapas = chapasUsadas.length;
+  let totalArea = 0, usedArea = 0;
+  chapasUsadas.forEach(cu => {
+    const chapa = state.chapas.find(c => c.id === cu.chapaId);
+    if (!chapa) return;
+    const area = chapa.comprimento * chapa.largura / 1e6;
+    totalArea += area;
+    usedArea += area * cu.aproveitamento;
+    cu.tiras && cu.tiras.forEach(t => { totalPecas += t.pecas ? t.pecas.reduce((s,p) => s + p.N, 0) : 0; });
+    cu.pecasLivres && cu.pecasLivres.forEach(p => { totalPecas += p.quantidade || 1; });
+  });
+  // Count from pecas directly
+  totalPecas = state.pecas.reduce((s, p) => s + p.quantidade, 0);
+  totalCortesSerra = listaCortes.filter(l => l.operacao === 'TRAÇA' || l.operacao.startsWith('RIPA') || l.operacao.startsWith('CORTE')).length;
+
+  const plano = {
+    chapasUsadas,
+    totais: {
+      chapas: totalChapas,
+      pecas: totalPecas,
+      aproveitamento: totalArea > 0 ? usedArea / totalArea : 0,
+      desperdicio_m2: Math.max(0, totalArea - usedArea),
+      cortes_serra: totalCortesSerra
+    },
+    listaCortes
+  };
+
+  state.plano = plano;
+  saveState();
+  return plano;
+}
+
+function processTracaRipaML(chapa, pecasGrupo, tipo, chapasUsadas, listaCortes, setSeq, seqStart) {
+  // Build pending list: {peca, qtd_restante}
+  let pending = pecasGrupo.map(p => ({ peca: p, qtd_restante: p.quantidade }));
+  let chapaIndex = 0;
+  let chapasUsadasCount = 0;
+  let chapasNeeded = [];
+
+  // Keep generating chapas until all pieces placed
+  while (pending.some(p => p.qtd_restante > 0)) {
+    chapaIndex++;
+    if (chapaIndex > 200) break; // safety
+
+    const comprimento_util = tipo === 'traca_ripa_ml' ? chapa.comprimento : chapa.comprimento;
+    const largura_util = chapa.largura - 2 * chapa.apara_borda;
+
+    // For traca_ripa_ml: place traça cut
+    // comprimento_util stays same, but we note the corte_traca
+    let corte_traca = 0;
+    if (tipo === 'traca_ripa_ml') {
+      // Use the max comprimento among pieces that still need placing
+      const activePecas = pending.filter(p => p.qtd_restante > 0).map(p => p.peca);
+      corte_traca = activePecas.length > 0 ? Math.max(...activePecas.map(p => p.comprimento + chapa.apara_borda)) : chapa.comprimento;
+      corte_traca = Math.min(corte_traca, chapa.comprimento);
+    }
+
+    // Arrange strips on this chapa
+    const { strips, width_used } = arrangeStrips(pending, chapa);
+    if (strips.length === 0) {
+      // Can't place anything — mark all as done to avoid infinite loop
+      pending.forEach(p => { p.qtd_restante = 0; });
+      break;
+    }
+
+    // Calculate yOffset for each strip (top-down)
+    let yOff = chapa.apara_borda;
+    const tirasResult = strips.map((s, idx) => {
+      const tira = {
+        id: genId('tira'),
+        label: 'TIRA ' + s.label,
+        yOffset: yOff,
+        largura: s.largura,
+        xCorte: tipo === 'traca_ripa_ml' ? corte_traca : 0,
+        temTracas: tipo === 'traca_ripa_ml',
+        pecas: [{ pecaId: s.pecaId, codigo: s.codigo, N: s.N, largura_final: s.largura_final }]
+      };
+      yOff += s.largura + (idx < strips.length - 1 ? chapa.kerf_serra : 0);
+      return tira;
+    });
+
+    // Compute aproveitamento
+    const chapaArea = chapa.comprimento * chapa.largura;
+    let usedArea = 0;
+    strips.forEach(s => {
+      const comprLen = tipo === 'traca_ripa_ml' ? corte_traca : chapa.comprimento;
+      usedArea += s.N * s.largura_final * comprLen;
+    });
+    const aproveitamento = Math.min(1, usedArea / chapaArea);
+    const desperdicio = (chapaArea - usedArea) / 1e6;
+
+    // Build listaCortes for this chapa
+    if (tipo === 'traca_ripa_ml') {
+      listaCortes.push({ seq: listaCortes.length + 1, operacao: 'TRAÇA', medida: corte_traca, qtd: 1, descricao: `Chapa ${chapaIndex}` });
+    }
+    strips.forEach(s => {
+      listaCortes.push({
+        seq: listaCortes.length + 1,
+        operacao: `RIPA Tira ${s.label}`,
+        medida: s.largura,
+        qtd: 1,
+        descricao: `${s.codigo} (${s.N} pç${s.N > 1 ? 's' : ''})`
+      });
+    });
+    // Multilâmina cuts
+    strips.forEach(s => {
+      if (s.N > 1) {
+        listaCortes.push({
+          seq: listaCortes.length + 1,
+          operacao: `ML Tira ${s.label}`,
+          medida: s.largura_final,
+          qtd: s.N - 1,
+          descricao: `${s.codigo} — ${s.N} pçs × ${s.largura_final}mm`
+        });
+      }
+    });
+
+    chapasNeeded.push({
+      chapaId: chapa.id,
+      chapaIndex,
+      totalChapas: 0, // will update
+      tiras: tirasResult,
+      pecasLivres: [],
+      aproveitamento,
+      desperdicio_m2: Math.max(0, desperdicio),
+      corte_traca: tipo === 'traca_ripa_ml' ? corte_traca : 0,
+      tipo
+    });
+    chapasUsadasCount++;
+  }
+
+  // Update totalChapas
+  chapasNeeded.forEach(c => { c.totalChapas = chapasUsadasCount; });
+  chapasNeeded.forEach(c => chapasUsadas.push(c));
+
+  // Check stock
+  if (chapasUsadasCount > chapa.qtd_estoque) {
+    showToast(`⚠️ Estoque insuficiente de "${chapa.nome}": necessário ${chapasUsadasCount}, disponível ${chapa.qtd_estoque}`, 'warn');
+  }
+}
+
+function processCorteLibre(chapa, pecasGrupo, chapasUsadas, listaCortes, seqStart) {
+  // Sort by area descending
+  const sorted = pecasGrupo.slice().sort((a, b) => (b.comprimento * b.largura) - (a.comprimento * a.largura));
+  const expand = [];
+  sorted.forEach(p => { for (let i = 0; i < p.quantidade; i++) expand.push(p); });
+
+  let chapaIndex = 0;
+  let pieceIdx = 0;
+
+  while (pieceIdx < expand.length) {
+    chapaIndex++;
+    const chapW = chapa.comprimento - 2 * chapa.apara_borda;
+    const chapH = chapa.largura - 2 * chapa.apara_borda;
+
+    const pecasLivres = [];
+    let stripY = 0;
+    let stripH = 0;
+    let stripX = 0;
+
+    while (pieceIdx < expand.length) {
+      const p = expand[pieceIdx];
+      let pw = p.comprimento, ph = p.largura;
+      // Try rotation if livre
+      if (p.direcao_fio === 'livre' && ph > pw) { [pw, ph] = [ph, pw]; }
+
+      if (pw > chapW) { pieceIdx++; showToast(`Peça "${p.codigo}" maior que chapa (largura)`, 'warn'); continue; }
+
+      if (stripX + pw > chapW) {
+        // New strip
+        stripY += stripH + chapa.kerf_serra;
+        stripH = 0; stripX = 0;
+      }
+      if (stripY + ph > chapH) break; // New chapa needed
+
+      if (stripH === 0) stripH = ph;
+
+      pecasLivres.push({ pecaId: p.id, codigo: p.codigo, x: stripX + chapa.apara_borda, y: stripY + chapa.apara_borda, w: pw, h: ph, cor: p.cor });
+      listaCortes.push({ seq: listaCortes.length + 1, operacao: 'CORTE', medida: pw, qtd: 1, descricao: p.codigo });
+      stripX += pw + chapa.kerf_serra;
+      pieceIdx++;
+    }
+
+    const chapaArea = chapa.comprimento * chapa.largura;
+    const usedArea = pecasLivres.reduce((s, p) => s + p.w * p.h, 0);
+    chapasUsadas.push({
+      chapaId: chapa.id, chapaIndex, totalChapas: 0,
+      tiras: [], pecasLivres,
+      aproveitamento: Math.min(1, usedArea / chapaArea),
+      desperdicio_m2: Math.max(0, (chapaArea - usedArea) / 1e6),
+      tipo: 'corte_livre'
+    });
+  }
+
+  // Update totalChapas
+  const startIdx = chapasUsadas.length - chapaIndex;
+  for (let i = startIdx; i < chapasUsadas.length; i++) chapasUsadas[i].totalChapas = chapaIndex;
+}
+
+function processNesting2D(chapa, pecasGrupo, chapasUsadas, listaCortes, seqStart) {
+  const sorted = pecasGrupo.slice().sort((a, b) => b.largura - a.largura);
+  const expand = [];
+  sorted.forEach(p => { for (let i = 0; i < p.quantidade; i++) expand.push(p); });
+
+  let chapaIndex = 0;
+  let pieceIdx = 0;
+
+  while (pieceIdx < expand.length) {
+    chapaIndex++;
+    const chapW = chapa.comprimento - 2 * chapa.apara_borda;
+    const chapH = chapa.largura - 2 * chapa.apara_borda;
+
+    const pecasLivres = [];
+    const shelves = []; // {y, h, x_used}
+
+    while (pieceIdx < expand.length) {
+      const p = expand[pieceIdx];
+      let pw = p.comprimento, ph = p.largura;
+      if (p.direcao_fio === 'livre' && ph > pw) { [pw, ph] = [ph, pw]; }
+
+      if (pw > chapW || ph > chapH) { pieceIdx++; showToast(`Peça "${p.codigo}" não cabe na chapa`, 'warn'); continue; }
+
+      // Find best shelf (first fit)
+      let placed = false;
+      for (const shelf of shelves) {
+        if (shelf.h >= ph && shelf.x_used + pw <= chapW) {
+          pecasLivres.push({ pecaId: p.id, codigo: p.codigo, x: shelf.x_used + chapa.apara_borda, y: shelf.y + chapa.apara_borda, w: pw, h: ph, cor: p.cor });
+          listaCortes.push({ seq: listaCortes.length + 1, operacao: 'NESTING', medida: pw, qtd: 1, descricao: p.codigo });
+          shelf.x_used += pw + chapa.kerf_serra;
+          placed = true; pieceIdx++; break;
+        }
+      }
+      if (!placed) {
+        // Open new shelf
+        const lastY = shelves.length > 0 ? shelves[shelves.length - 1].y + shelves[shelves.length - 1].h + chapa.kerf_serra : 0;
+        if (lastY + ph > chapH) break; // need new chapa
+        shelves.push({ y: lastY, h: ph, x_used: pw + chapa.kerf_serra });
+        pecasLivres.push({ pecaId: p.id, codigo: p.codigo, x: chapa.apara_borda, y: lastY + chapa.apara_borda, w: pw, h: ph, cor: p.cor });
+        listaCortes.push({ seq: listaCortes.length + 1, operacao: 'NESTING', medida: pw, qtd: 1, descricao: p.codigo });
+        pieceIdx++;
+      }
+    }
+
+    const chapaArea = chapa.comprimento * chapa.largura;
+    const usedArea = pecasLivres.reduce((s, p) => s + p.w * p.h, 0);
+    chapasUsadas.push({
+      chapaId: chapa.id, chapaIndex, totalChapas: 0,
+      tiras: [], pecasLivres,
+      aproveitamento: Math.min(1, usedArea / chapaArea),
+      desperdicio_m2: Math.max(0, (chapaArea - usedArea) / 1e6),
+      tipo: 'nesting_2d'
+    });
+  }
+
+  const startIdx = chapasUsadas.length - chapaIndex;
+  for (let i = startIdx; i < chapasUsadas.length; i++) chapasUsadas[i].totalChapas = chapaIndex;
+}
+
+// ============================================================
+// ABA PLANO DE CORTE
+// ============================================================
+let canvasZoom = 1.0;
+let currentChapaView = 0; // index into plano.chapasUsadas
+let hitObjects = []; // for mouse interaction
+
+function renderPlanoTab() {
+  const hasPlano = state.plano && state.plano.chapasUsadas && state.plano.chapasUsadas.length > 0;
+
+  let kpiHtml = '';
+  if (hasPlano) {
+    const t = state.plano.totais;
+    const ap = (t.aproveitamento * 100).toFixed(1);
+    const apClass = t.aproveitamento >= 0.9 ? 'ok' : t.aproveitamento >= 0.75 ? 'warn' : '';
+    kpiHtml = `<div class="kpi-row">
+      <div class="kpi-card"><div class="kpi-label">Chapas Necessárias</div><div class="kpi-value">${t.chapas}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Total de Peças</div><div class="kpi-value">${t.pecas}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Aproveitamento</div><div class="kpi-value ${apClass}">${ap}%</div></div>
+      <div class="kpi-card"><div class="kpi-label">Desperdício</div><div class="kpi-value warn">${t.desperdicio_m2.toFixed(3)} m²</div></div>
+      <div class="kpi-card"><div class="kpi-label">Cortes Serra</div><div class="kpi-value">${t.cortes_serra}</div></div>
+    </div>`;
+  }
+
+  // Build chapa filter options
+  let chapaOpts = '<option value="all">Todas</option>';
+  if (hasPlano) {
+    const seen = {};
+    state.plano.chapasUsadas.forEach((cu, i) => {
+      const chapa = state.chapas.find(c => c.id === cu.chapaId);
+      const label = chapa ? chapa.nome : cu.chapaId;
+      chapaOpts += `<option value="${i}">Chapa ${cu.chapaIndex} — ${label}</option>`;
+    });
+  }
+
+  // Lista de cortes
+  let listaCortesHtml = '';
+  if (hasPlano && state.plano.listaCortes.length > 0) {
+    let rows = state.plano.listaCortes.map(l => `
+      <tr>
+        <td><span style="font-family:'IBM Plex Mono',monospace">${l.seq}</span></td>
+        <td><strong>${esc(l.operacao)}</strong></td>
+        <td><span style="font-family:'IBM Plex Mono',monospace">${l.medida} mm</span></td>
+        <td>${l.qtd}</td>
+        <td>${esc(l.descricao||'—')}</td>
+      </tr>`).join('');
+    listaCortesHtml = `<div class="lista-cortes">
+      <div class="section-title">Lista de Cortes</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Operação</th><th>Medida</th><th>Qtd</th><th>Peça / Tira</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+
+  return `
+    <div class="section-header no-print">
+      <h2>Plano de Corte</h2>
+      <button class="btn btn-accent" onclick="doGerarPlano()">⚙ Gerar Plano</button>
+    </div>
+    ${kpiHtml}
+    <div class="controls-row no-print">
+      <select id="ctrl-chapa" onchange="updateCanvasView()">${chapaOpts}</select>
+      <select id="ctrl-escala" onchange="updateCanvasView()">
+        <option value="auto">Escala Auto</option>
+        <option value="10">1:10</option>
+        <option value="20">1:20</option>
+        <option value="25">1:25</option>
+      </select>
+      <button class="btn btn-surface" onclick="zoomIn()">🔍+</button>
+      <button class="btn btn-surface" onclick="zoomOut()">🔍−</button>
+      <button class="btn btn-surface" onclick="zoomReset()">↺ Reset</button>
+    </div>
+    <div class="plan-layout">
+      <div class="canvas-wrap">
+        ${hasPlano ? '' : '<div class="empty-state"><div class="icon">📐</div><p>Clique em "Gerar Plano" para visualizar o plano de corte</p></div>'}
+        <canvas id="plan-canvas" ${hasPlano ? '' : 'style="display:none"'}></canvas>
+      </div>
+      <div class="detail-panel no-print" id="detail-panel">
+        <h3>Detalhe</h3>
+        <p style="color:var(--txt2);font-size:12px">Clique em uma peça ou tira para ver detalhes</p>
+      </div>
+    </div>
+    ${listaCortesHtml}`;
+}
+
+function doGerarPlano() {
+  const plano = gerarPlano();
+  if (!plano) return;
+  renderTab('plano');
+  setupCanvas();
+  showToast('Plano gerado com sucesso!', 'ok');
+}
+
+function zoomIn() { canvasZoom = Math.min(5, canvasZoom * 1.25); updateCanvasView(); }
+function zoomOut() { canvasZoom = Math.max(0.1, canvasZoom / 1.25); updateCanvasView(); }
+function zoomReset() { canvasZoom = 1.0; updateCanvasView(); }
+
+function updateCanvasView() {
+  const sel = document.getElementById('ctrl-chapa');
+  if (sel) currentChapaView = sel.value === 'all' ? 'all' : parseInt(sel.value);
+  drawPlan();
+}
+
+function setupCanvas() {
+  if (!state.plano || !state.plano.chapasUsadas.length) return;
+  const canvas = document.getElementById('plan-canvas');
+  if (!canvas) return;
+  canvas.style.display = 'block';
+
+  const resizeObserver = new ResizeObserver(() => drawPlan());
+  resizeObserver.observe(canvas.parentElement);
+
+  canvas.addEventListener('mousemove', onCanvasMouseMove);
+  canvas.addEventListener('click', onCanvasClick);
+  canvas.addEventListener('mouseleave', () => {
+    document.getElementById('canvas-tooltip').style.display = 'none';
+  });
+
+  drawPlan();
+}
+
+function drawPlan() {
+  const canvas = document.getElementById('plan-canvas');
+  if (!canvas || !state.plano) return;
+  const ctx = canvas.getContext('2d');
+  const container = canvas.parentElement;
+  const containerW = container.clientWidth;
+
+  if (!state.plano.chapasUsadas.length) return;
+
+  hitObjects = [];
+
+  // Determine which chapas to draw
+  let chapaToDraw = [];
+  if (currentChapaView === 'all') {
+    chapaToDraw = state.plano.chapasUsadas;
+  } else {
+    const idx = typeof currentChapaView === 'number' ? currentChapaView : 0;
+    if (state.plano.chapasUsadas[idx]) chapaToDraw = [state.plano.chapasUsadas[idx]];
+  }
+
+  // Layout: draw chapas vertically stacked
+  const PAD = 20;
+  const COTA_LEFT = 50;
+  const COTA_TOP = 40;
+  const COTA_RIGHT = 30;
+  const COTA_BOTTOM = 50;
+  const GAP = 40;
+
+  // Determine scale
+  let scale = canvasZoom;
+  const scaleCtrl = document.getElementById('ctrl-escala');
+  const scaleVal = scaleCtrl ? scaleCtrl.value : 'auto';
+
+  if (scaleVal === 'auto') {
+    const maxChapa = chapaToDraw[0];
+    const chapa = state.chapas.find(c => c.id === maxChapa.chapaId);
+    if (chapa) {
+      const avail = containerW - PAD * 2 - COTA_LEFT - COTA_RIGHT;
+      scale = (avail / chapa.comprimento) * canvasZoom;
+    }
+  } else {
+    scale = (1 / parseInt(scaleVal)) * canvasZoom * 10;
+  }
+
+  // Calculate total canvas height needed
+  let totalH = PAD;
+  chapaToDraw.forEach(cu => {
+    const chapa = state.chapas.find(c => c.id === cu.chapaId);
+    if (!chapa) return;
+    totalH += COTA_TOP + chapa.largura * scale + COTA_BOTTOM + GAP;
+  });
+  totalH += PAD;
+
+  const totalW = Math.max(containerW, (() => {
+    let mw = 0;
+    chapaToDraw.forEach(cu => {
+      const ch = state.chapas.find(c => c.id === cu.chapaId);
+      if (ch) mw = Math.max(mw, PAD + COTA_LEFT + ch.comprimento * scale + COTA_RIGHT + PAD);
+    });
+    return mw;
+  })());
+
+  canvas.width = totalW;
+  canvas.height = totalH;
+
+  ctx.fillStyle = '#111111';
+  ctx.fillRect(0, 0, totalW, totalH);
+
+  let drawY = PAD;
+
+  chapaToDraw.forEach((cu, cuIdx) => {
+    const chapa = state.chapas.find(c => c.id === cu.chapaId);
+    if (!chapa) return;
+
+    const ox = PAD + COTA_LEFT; // origin x
+    const oy = drawY + COTA_TOP; // origin y
+
+    const cw = chapa.comprimento * scale;
+    const ch_h = chapa.largura * scale;
+
+    // ---- Draw chapa background ----
+    ctx.fillStyle = hexToRgba(chapa.cor || '#1e4a7a', 0.15);
+    ctx.fillRect(ox, oy, cw, ch_h);
+    ctx.strokeStyle = '#3a3a3a';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(ox, oy, cw, ch_h);
+
+    // ---- Chapa label ----
+    ctx.font = `bold 13px 'Barlow Condensed', sans-serif`;
+    ctx.fillStyle = '#888';
+    ctx.fillText(`${chapa.nome} — Chapa ${cu.chapaIndex}${cu.totalChapas ? ' de ' + cu.totalChapas : ''}`, ox + 4, oy - 8);
+
+    // ---- Apara de borda ----
+    const ab = chapa.apara_borda * scale;
+    ctx.fillStyle = 'rgba(244,67,54,0.12)';
+    ctx.fillRect(ox, oy, cw, ab); // top
+    ctx.fillRect(ox, oy + ch_h - ab, cw, ab); // bottom
+    ctx.fillRect(ox, oy, ab, ch_h); // left
+    ctx.fillRect(ox + cw - ab, oy, ab, ch_h); // right
+    ctx.strokeStyle = 'rgba(244,67,54,0.3)';
+    ctx.lineWidth = 0.5;
+    ctx.strokeRect(ox + ab, oy + ab, cw - 2*ab, ch_h - 2*ab);
+
+    // ---- Draw tiras (ML strips) ----
+    if (cu.tiras && cu.tiras.length > 0) {
+      cu.tiras.forEach(tira => {
+        const ty = oy + tira.yOffset * scale;
+        const th = tira.largura * scale;
+        const tx_start = ox + ab;
+        const tx_w = (cu.corte_traca > 0 ? cu.corte_traca : chapa.comprimento - chapa.apara_borda) * scale - ab;
+
+        // Tira background
+        const pInfo = tira.pecas[0];
+        const peca = state.pecas.find(p => p.id === pInfo?.pecaId);
+        const tiraColor = peca ? peca.cor : '#4a7a1e';
+
+        ctx.fillStyle = hexToRgba(tiraColor, 0.35);
+        ctx.fillRect(tx_start, ty, tx_w, th);
+
+        // Register hit object
+        hitObjects.push({
+          type: 'tira', x: tx_start, y: ty, w: tx_w, h: th,
+          tira, chapaId: cu.chapaId, chapaIndex: cu.chapaIndex, cu
+        });
+
+        // Tira border
+        ctx.strokeStyle = hexToRgba(tiraColor, 0.8);
+        ctx.lineWidth = 1;
+        ctx.strokeRect(tx_start, ty, tx_w, th);
+
+        // Tira label
+        if (th > 14) {
+          ctx.font = `bold 11px 'Barlow Condensed', sans-serif`;
+          ctx.fillStyle = '#ffffff';
+          ctx.fillText(`${tira.label}`, tx_start + 4, ty + 13);
+          if (pInfo && th > 24) {
+            ctx.font = `10px 'IBM Plex Mono', monospace`;
+            ctx.fillStyle = 'rgba(255,255,255,0.7)';
+            ctx.fillText(`${pInfo.N}× ${pInfo.largura_final}mm`, tx_start + 4, ty + 25);
+          }
+        }
+
+        // ML subdivision lines within tira
+        if (pInfo && pInfo.N > 1) {
+          const pLarg = pInfo.largura_final * scale;
+          const kerf = chapa.kerf_ml * scale;
+          let xOff = tx_start + chapa.oversize_ml * scale / 2;
+          for (let n = 0; n < pInfo.N; n++) {
+            xOff += pLarg;
+            if (n < pInfo.N - 1) {
+              ctx.beginPath();
+              ctx.setLineDash([3, 3]);
+              ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+              ctx.lineWidth = 0.8;
+              ctx.moveTo(xOff, ty);
+              ctx.lineTo(xOff, ty + th);
+              ctx.stroke();
+              ctx.setLineDash([]);
+              xOff += kerf;
+            }
+            // Piece number
+            if (pLarg > 20 && th > 20) {
+              ctx.font = `10px 'IBM Plex Mono', monospace`;
+              ctx.fillStyle = 'rgba(255,255,255,0.5)';
+              ctx.fillText(`${n+1}`, xOff - pLarg / 2 - 4, ty + th / 2 + 4);
+            }
+          }
+        }
+
+        // Kerf lines between tiras
+        if (tira.yOffset > chapa.apara_borda) {
+          const kerry = ty - chapa.kerf_serra * scale;
+          ctx.fillStyle = 'rgba(0,0,0,0.5)';
+          ctx.fillRect(tx_start, kerry, tx_w, chapa.kerf_serra * scale);
+        }
+
+        // Cota: tira width on right side
+        drawCota(ctx,
+          ox + cw + 8, ty, ox + cw + 8, ty + th,
+          `${tira.largura.toFixed(1)}`, 'v', null);
+      });
+
+      // ---- Traça line ----
+      if (cu.corte_traca > 0) {
+        const tx = ox + cu.corte_traca * scale;
+        ctx.beginPath();
+        ctx.setLineDash([6, 4]);
+        ctx.strokeStyle = '#F5A623';
+        ctx.lineWidth = 1.5;
+        ctx.moveTo(tx, oy);
+        ctx.lineTo(tx, oy + ch_h);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.font = 'bold 11px sans-serif';
+        ctx.fillStyle = '#F5A623';
+        ctx.fillText('✂ TRAÇA', tx + 3, oy + 14);
+
+        // Sobra area
+        const sobraW = (chapa.comprimento - cu.corte_traca) * scale;
+        if (sobraW > 10) {
+          ctx.fillStyle = 'rgba(0,0,0,0.25)';
+          ctx.fillRect(tx, oy, sobraW - ab, ch_h);
+          drawHatch(ctx, tx, oy, sobraW - ab, ch_h);
+          if (sobraW > 40) {
+            ctx.font = '10px sans-serif';
+            ctx.fillStyle = 'rgba(255,255,255,0.4)';
+            ctx.fillText(`SOBRA ${(chapa.comprimento - cu.corte_traca).toFixed(0)}mm`, tx + 4, oy + ch_h / 2);
+          }
+        }
+      }
+
+      // ---- Sobra lateral (rightmost strips vs chapa width) ----
+      if (cu.tiras.length > 0) {
+        const lastTira = cu.tiras[cu.tiras.length - 1];
+        const tirasBottom = (lastTira.yOffset + lastTira.largura) * scale;
+        if (tirasBottom + chapa.apara_borda * scale < ch_h - ab) {
+          const sobraY = oy + tirasBottom + chapa.apara_borda * scale;
+          const sobraH = ch_h - tirasBottom - chapa.apara_borda * scale;
+          if (sobraH > 4) {
+            ctx.fillStyle = 'rgba(0,0,0,0.2)';
+            ctx.fillRect(ox + ab, sobraY, (cu.corte_traca > 0 ? cu.corte_traca : chapa.comprimento - chapa.apara_borda) * scale - ab, sobraH - ab);
+            drawHatch(ctx, ox + ab, sobraY, (cu.corte_traca > 0 ? cu.corte_traca : chapa.comprimento - chapa.apara_borda) * scale - ab, sobraH - ab);
+          }
+        }
+      }
+    }
+
+    // ---- Draw pecasLivres (corte_livre / nesting_2d) ----
+    if (cu.pecasLivres && cu.pecasLivres.length > 0) {
+      cu.pecasLivres.forEach(pl => {
+        const px = ox + pl.x * scale;
+        const py = oy + pl.y * scale;
+        const pw = pl.w * scale;
+        const ph = pl.h * scale;
+
+        ctx.fillStyle = hexToRgba(pl.cor || '#4a7a1e', 0.4);
+        ctx.fillRect(px, py, pw, ph);
+        ctx.strokeStyle = hexToRgba(pl.cor || '#4a7a1e', 0.9);
+        ctx.lineWidth = 1;
+        ctx.strokeRect(px, py, pw, ph);
+
+        hitObjects.push({
+          type: 'peca_livre', x: px, y: py, w: pw, h: ph,
+          pl, chapaId: cu.chapaId, chapaIndex: cu.chapaIndex
+        });
+
+        if (pw > 20 && ph > 12) {
+          ctx.font = `bold 10px 'Barlow Condensed', sans-serif`;
+          ctx.fillStyle = '#fff';
+          ctx.fillText(pl.codigo.slice(0, 10), px + 2, py + 12);
+        }
+        if (pw > 30 && ph > 24) {
+          ctx.font = `9px 'IBM Plex Mono', monospace`;
+          ctx.fillStyle = 'rgba(255,255,255,0.6)';
+          ctx.fillText(`${pl.w}×${pl.h}`, px + 2, py + 23);
+        }
+      });
+    }
+
+    // ---- Top cota: comprimento ----
+    drawCota(ctx, ox, oy - 8, ox + cw, oy - 8, `${chapa.comprimento} mm`, 'h', null);
+    if (cu.corte_traca > 0) {
+      drawCota(ctx, ox + ab, oy - 26, ox + cu.corte_traca * scale, oy - 26, `${cu.corte_traca} mm`, 'h', null);
+    }
+
+    // ---- Left cota: largura ----
+    drawCota(ctx, ox - 8, oy, ox - 8, oy + ch_h, `${chapa.largura} mm`, 'v', null);
+
+    drawY += COTA_TOP + ch_h + COTA_BOTTOM + GAP;
+  });
+}
+
+function drawCota(ctx, x1, y1, x2, y2, label, dir, _scale) {
+  const TICK = 5;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  ctx.lineWidth = 0.8;
+  ctx.font = '10px IBM Plex Mono, monospace';
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+  if (dir === 'h') {
+    ctx.beginPath(); ctx.moveTo(x1, y1 - TICK); ctx.lineTo(x1, y1 + TICK); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x2, y2 - TICK); ctx.lineTo(x2, y2 + TICK); ctx.stroke();
+    const mx = (x1 + x2) / 2, my = y1;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#aaa';
+    ctx.fillText(label, mx, my - 3);
+  } else {
+    ctx.beginPath(); ctx.moveTo(x1 - TICK, y1); ctx.lineTo(x1 + TICK, y1); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x2 - TICK, y2); ctx.lineTo(x2 + TICK, y2); ctx.stroke();
+    const mx = x1, my = (y1 + y2) / 2;
+    ctx.save(); ctx.translate(mx, my); ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#aaa';
+    ctx.fillText(label, 0, -3);
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+function drawHatch(ctx, x, y, w, h) {
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 0.8;
+  const step = 10;
+  ctx.beginPath();
+  for (let i = 0; i < w + h; i += step) {
+    ctx.moveTo(x + i, y);
+    ctx.lineTo(x, y + i);
+    ctx.moveTo(x + i, y + h);
+    ctx.lineTo(x + w, y + i);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+function onCanvasMouseMove(e) {
+  const rect = e.target.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  const tip = document.getElementById('canvas-tooltip');
+  let hit = null;
+  for (const obj of hitObjects) {
+    if (mx >= obj.x && mx <= obj.x + obj.w && my >= obj.y && my <= obj.y + obj.h) { hit = obj; break; }
+  }
+  if (hit) {
+    let html = '';
+    if (hit.type === 'tira') {
+      const p = hit.tira.pecas[0];
+      html = `<strong>${hit.tira.label}</strong><br>${p?.codigo||''}<br>${p?.N||1}× ${p?.largura_final||'?'}mm<br>Tira: ${hit.tira.largura.toFixed(1)}mm`;
+    } else {
+      html = `<strong>${hit.pl.codigo}</strong><br>${hit.pl.w}×${hit.pl.h}mm`;
+    }
+    tip.innerHTML = html;
+    tip.style.display = 'block';
+    tip.style.left = (e.clientX + 12) + 'px';
+    tip.style.top = (e.clientY + 12) + 'px';
+  } else {
+    tip.style.display = 'none';
+  }
+}
+
+function onCanvasClick(e) {
+  const rect = e.target.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  let hit = null;
+  for (const obj of hitObjects) {
+    if (mx >= obj.x && mx <= obj.x + obj.w && my >= obj.y && my <= obj.y + obj.h) { hit = obj; break; }
+  }
+  const panel = document.getElementById('detail-panel');
+  if (!panel) return;
+  if (!hit) { panel.innerHTML = '<h3>Detalhe</h3><p style="color:var(--txt2);font-size:12px">Clique em uma peça ou tira</p>'; return; }
+
+  let html = '<h3>Detalhe</h3>';
+  const chapa = state.chapas.find(c => c.id === hit.chapaId);
+
+  if (hit.type === 'tira') {
+    const ti = hit.tira;
+    const pi = ti.pecas[0];
+    const peca = state.pecas.find(p => p.id === pi?.pecaId);
+    html += detailRow('Tira', ti.label);
+    html += detailRow('Peça', pi?.codigo || '—');
+    if (peca) {
+      html += detailRow('Comprimento', peca.comprimento + ' mm');
+      html += detailRow('Largura', peca.largura + ' mm');
+      html += detailRow('Qtd Tira', pi.N);
+    }
+    html += detailRow('Larg. Tira', ti.largura.toFixed(1) + ' mm');
+    html += detailRow('Chapa', chapa ? chapa.nome : '—');
+    html += detailRow('Índice', `${hit.chapaIndex}`);
+  } else {
+    const pl = hit.pl;
+    const peca = state.pecas.find(p => p.id === pl.pecaId);
+    html += detailRow('Código', pl.codigo);
+    html += detailRow('Dimensões', `${pl.w} × ${pl.h} mm`);
+    if (peca) html += detailRow('Qtd', peca.quantidade);
+    html += detailRow('Chapa', chapa ? chapa.nome : '—');
+    html += detailRow('Índice', `${hit.chapaIndex}`);
+  }
+  if (hit.cu) {
+    html += detailRow('Aproveit.', (hit.cu.aproveitamento * 100).toFixed(1) + '%');
+    html += detailRow('Desperd.', hit.cu.desperdicio_m2.toFixed(4) + ' m²');
+  }
+  panel.innerHTML = html;
+}
+
+function detailRow(key, val) {
+  return `<div class="detail-row"><div class="detail-key">${key}</div><div class="detail-val">${val}</div></div>`;
+}
+
+// ============================================================
+// ABA EXPORTAR
+// ============================================================
+function renderExportarTab() {
+  return `
+    <div class="section-header"><h2>Exportar</h2></div>
+    <div class="export-grid">
+      <div class="export-card" onclick="salvarProjetoJSON()">
+        <div class="icon">💾</div>
+        <div class="ec-title">Salvar Projeto</div>
+        <div class="ec-desc">Exportar como arquivo JSON</div>
+      </div>
+      <div class="export-card" onclick="document.getElementById('load-json-input').click()">
+        <div class="icon">📂</div>
+        <div class="ec-title">Carregar Projeto</div>
+        <div class="ec-desc">Abrir arquivo JSON salvo</div>
+      </div>
+      <div class="export-card" onclick="imprimirPlano()">
+        <div class="icon">🖨️</div>
+        <div class="ec-title">Imprimir Plano</div>
+        <div class="ec-desc">Imprimir visualização e lista de cortes</div>
+      </div>
+      <div class="export-card" onclick="copiarListaCortes()">
+        <div class="icon">📋</div>
+        <div class="ec-title">Copiar Lista de Cortes</div>
+        <div class="ec-desc">Copiar tabela para a área de transferência</div>
+      </div>
+    </div>
+    <input type="file" id="load-json-input" accept=".json" style="display:none" onchange="carregarProjetoJSON(event)">
+    <hr>
+    <div style="margin-top:16px">
+      <div class="section-title">Resumo do Projeto</div>
+      ${state.plano ? `
+        <div class="kpi-row">
+          <div class="kpi-card"><div class="kpi-label">Chapas</div><div class="kpi-value">${state.plano.totais.chapas}</div></div>
+          <div class="kpi-card"><div class="kpi-label">Peças</div><div class="kpi-value">${state.plano.totais.pecas}</div></div>
+          <div class="kpi-card"><div class="kpi-label">Aproveitamento</div><div class="kpi-value ok">${(state.plano.totais.aproveitamento*100).toFixed(1)}%</div></div>
+          <div class="kpi-card"><div class="kpi-label">Desperdício</div><div class="kpi-value warn">${state.plano.totais.desperdicio_m2.toFixed(3)} m²</div></div>
+        </div>` :
+        '<p style="color:var(--txt2)">Nenhum plano gerado ainda. Vá para a aba "Plano de Corte" e clique em "Gerar Plano".</p>'}
+    </div>`;
+}
+
+function salvarProjetoJSON() {
+  const data = {
+    versao: '1.0',
+    data: new Date().toISOString().slice(0, 10),
+    chapas: state.chapas,
+    pecas: state.pecas,
+    plano: state.plano
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `ritmoprod_${data.data}.json`; a.click();
+  URL.revokeObjectURL(url);
+  showToast('Projeto salvo com sucesso', 'ok');
+}
+
+function carregarProjetoJSON(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!data.chapas || !data.pecas) throw new Error('Formato inválido');
+      state.chapas = data.chapas || [];
+      state.pecas = data.pecas || [];
+      state.plano = data.plano || null;
+      saveState(); renderTab(state.activeTab);
+      showToast('Projeto carregado com sucesso', 'ok');
+    } catch(err) {
+      showToast('Erro ao carregar projeto: ' + err.message, 'error');
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+  e.target.value = '';
+}
+
+function imprimirPlano() {
+  if (!state.plano) { showToast('Gere o plano antes de imprimir', 'warn'); return; }
+  switchTab('plano');
+  setTimeout(() => { window.print(); }, 300);
+}
+
+function copiarListaCortes() {
+  if (!state.plano || !state.plano.listaCortes.length) { showToast('Nenhuma lista de cortes disponível', 'warn'); return; }
+  let text = '#\tOperação\tMedida\tQtd\tDescrição\n';
+  state.plano.listaCortes.forEach(l => {
+    text += `${l.seq}\t${l.operacao}\t${l.medida}mm\t${l.qtd}\t${l.descricao||'—'}\n`;
+  });
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('Lista copiada para a área de transferência', 'ok');
+  }).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    showToast('Lista copiada', 'ok');
+  });
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function gv(id) { const el = document.getElementById(id); return el ? el.value : ''; }
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// ============================================================
+// INIT
+// ============================================================
+loadState();
+renderTab('chapas');
+</script>
+</body>
+</html>
