@@ -945,24 +945,29 @@ function arrangeStrips(pieces_info, chapa) {
 
   const pending = pieces_info.map(pi => ({...pi}));
 
-  for (let pi = 0; pi < pending.length; pi++) {
-    const item = pending[pi];
-    if (item.qtd_restante <= 0) continue;
-    const peca = item.peca;
-    const N_max = calcNMax(peca.largura, chapa.boca_ml, chapa.oversize_ml, chapa.kerf_ml);
-    // Try N from N_max down to 1
-    for (let N = Math.min(N_max, item.qtd_restante); N >= 1; N--) {
-      const lt = larguraTira(N, peca.largura, chapa.kerf_ml, chapa.oversize_ml);
-      const separator = strips.length > 0 ? chapa.kerf_serra : 0;
-      if (width_used + separator + lt <= largura_util) {
-        strips.push({
-          pecaId: peca.id, codigo: peca.codigo, N, largura: lt,
-          largura_final: peca.largura, label: labels[label_idx % 26]
-        });
-        label_idx++;
-        width_used += separator + lt;
-        item.qtd_restante -= N;
-        break;
+  // Keep adding strips until no more fit on this chapa
+  let placed = true;
+  while (placed && pending.some(p => p.qtd_restante > 0)) {
+    placed = false;
+    for (let pi = 0; pi < pending.length; pi++) {
+      const item = pending[pi];
+      if (item.qtd_restante <= 0) continue;
+      const peca = item.peca;
+      const N_max = calcNMax(peca.largura, chapa.boca_ml, chapa.oversize_ml, chapa.kerf_ml);
+      for (let N = Math.min(N_max, item.qtd_restante); N >= 1; N--) {
+        const lt = larguraTira(N, peca.largura, chapa.kerf_ml, chapa.oversize_ml);
+        const separator = strips.length > 0 ? chapa.kerf_serra : 0;
+        if (width_used + separator + lt <= largura_util) {
+          strips.push({
+            pecaId: peca.id, codigo: peca.codigo, N, largura: lt,
+            largura_final: peca.largura, label: labels[label_idx % 26]
+          });
+          label_idx++;
+          width_used += separator + lt;
+          item.qtd_restante -= N;
+          placed = true;
+          break;
+        }
       }
     }
   }
@@ -1389,8 +1394,10 @@ function setupCanvas() {
   if (!canvas) return;
   canvas.style.display = 'block';
 
-  const resizeObserver = new ResizeObserver(() => drawPlan());
-  resizeObserver.observe(canvas.parentElement);
+  if (!window._ritmoprodResizeAttached) {
+    window.addEventListener('resize', () => drawPlan());
+    window._ritmoprodResizeAttached = true;
+  }
 
   canvas.addEventListener('mousemove', onCanvasMouseMove);
   canvas.addEventListener('click', onCanvasClick);
@@ -1543,29 +1550,29 @@ function drawPlan() {
           }
         }
 
-        // ML subdivision lines within tira
+        // ML subdivision lines within tira - HORIZONTAL cuts (in Y/largura direction)
         if (pInfo && pInfo.N > 1) {
           const pLarg = pInfo.largura_final * scale;
           const kerf = chapa.kerf_ml * scale;
-          let xOff = tx_start + chapa.oversize_ml * scale / 2;
+          let yOff = ty + (chapa.oversize_ml / 2) * scale;
           for (let n = 0; n < pInfo.N; n++) {
-            xOff += pLarg;
+            yOff += pLarg;
             if (n < pInfo.N - 1) {
               ctx.beginPath();
               ctx.setLineDash([3, 3]);
               ctx.strokeStyle = 'rgba(255,255,255,0.4)';
               ctx.lineWidth = 0.8;
-              ctx.moveTo(xOff, ty);
-              ctx.lineTo(xOff, ty + th);
+              ctx.moveTo(tx_start, yOff);
+              ctx.lineTo(tx_start + tx_w, yOff);
               ctx.stroke();
               ctx.setLineDash([]);
-              xOff += kerf;
+              yOff += kerf;
             }
             // Piece number
-            if (pLarg > 20 && th > 20) {
+            if (pLarg > 16) {
               ctx.font = `10px 'IBM Plex Mono', monospace`;
               ctx.fillStyle = 'rgba(255,255,255,0.5)';
-              ctx.fillText(`${n+1}`, xOff - pLarg / 2 - 4, ty + th / 2 + 4);
+              ctx.fillText(`${n+1}`, tx_start + 4, yOff - pLarg / 2 + 4);
             }
           }
         }
