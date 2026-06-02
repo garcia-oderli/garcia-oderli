@@ -1104,25 +1104,25 @@ function processTracaRipaML(chapa, pecasGrupo, tipo, chapasUsadas, listaCortes, 
 
     // Build listaCortes for this chapa
     if (tipo === 'traca_ripa_ml') {
-      listaCortes.push({ seq: listaCortes.length + 1, operacao: 'TRAÇA', medida: corte_traca, qtd: 1, descricao: `Chapa ${chapaIndex}` });
+      listaCortes.push({ seq: listaCortes.length + 1, operacao: 'TRAÇA', medida: corte_traca, qtd: 1, descricao: '' });
     }
     strips.forEach(s => {
       listaCortes.push({
         seq: listaCortes.length + 1,
-        operacao: `RIPA Tira ${s.label}`,
-        medida: s.largura,
+        operacao: 'RIPA',
+        medida: Math.round(s.largura * 10) / 10,
         qtd: 1,
         descricao: `${s.codigo} (${s.N} pç${s.N > 1 ? 's' : ''})`
       });
     });
     // Multilâmina cuts
     strips.forEach(s => {
-      if (s.N > 1) {
+      if (s.N >= 1) {
         listaCortes.push({
           seq: listaCortes.length + 1,
-          operacao: `ML Tira ${s.label}`,
+          operacao: 'MULTILÂMINA',
           medida: s.largura_final,
-          qtd: s.N - 1,
+          qtd: 1,
           descricao: `${s.codigo} — ${s.N} pçs × ${s.largura_final}mm`
         });
       }
